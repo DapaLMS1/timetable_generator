@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLT35021 DAPA Assessment Timetable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* New Color Palette Mapping */
+            --dapa-primary: #532A8C; /* Deep Purple (Main Text, Accent) */
+            --dapa-secondary: #C3ACE8; /* Light Purple/Lavender (Buttons, Highlights) */
+            --dapa-background: #F2F2F2; /* Very Light Grey (Body Background) */
+            --dapa-accent-hover: #9D8ABB; /* Muted Medium Purple (Hover State) */
+            --dapa-success-bg: #96BF78; /* Muted Light Green (Completed Row Background) */
+            --dapa-success-text: #532A8C; /* Use Primary for high contrast text on green background */
+        }
+        /* Custom styles to incorporate DAPA colors via Tailwind theme */
+        .bg-dapa-primary { background-color: var(--dapa-primary); }
+        .text-dapa-primary { color: var(--dapa-primary); }
+        .bg-dapa-secondary { background-color: var(--dapa-secondary); }
+        .text-dapa-secondary { color: var(--dapa-secondary); }
+        .bg-dapa-background { background-color: var(--dapa-background); }
+        .bg-dapa-accent-hover { background-color: var(--dapa-accent-hover); }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dapa-background);
+        }
+
+        /* Styling for the timetable table */
+        #timetable-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        #timetable-table thead {
+            background-color: var(--dapa-secondary); /* Light purple header */
+            color: var(--dapa-primary);
+            position: sticky;
+            top: 72px; 
+            z-index: 10;
+        }
+        
+        #timetable-table th, #timetable-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        #timetable-table tbody tr:hover {
+            background-color: #e9ecef; /* Keep light hover for readability */
+        }
+
+        /* Specific style for rows marked as 'Completed' */
+        .row-completed {
+            background-color: var(--dapa-success-bg); /* Muted Light Green */
+            color: var(--dapa-success-text); /* Deep Purple text for contrast */
+            opacity: 0.9;
+        }
+        
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(83, 42, 140, 0.5); /* Semi-transparent DAPA primary */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--dapa-primary);
+        }
+        
+        /* Modal Overlay Styling */
+        #details-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Input field focus styles */
+        .focus-ring {
+            /* Using rgba of the new primary color #532A8C */
+            box-shadow: 0 0 0 3px rgba(83, 42, 140, 0.5); 
+            border-color: var(--dapa-primary);
+        }
+        .input-error {
+            border-color: #ef4444; /* Tailwind red-500 */
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Fixed Header with DAPA Logo and Branding -->
+    <header class="sticky top-0 z-20 shadow-md bg-white border-b border-dapa-primary/20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <!-- DAPA Logo using Base64 Data URI (Note: Logo color may not match new scheme) -->
+                <div class="w-10 h-10 flex-shrink-0">
+                    <img id="dapa-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAAA8AX2jAAAACXBIWXMAAAsTAAALEwEAmpwYAAAaTklEQVR4nO2deXxU5np/OzM7k2VhQoYRalo6h3o1qu5z+v9f65yR+l0e/Q+1h402u706yR93Bw2u7/sLdY/W/5t631GjjaQJ2tASQkIIhJzJTGSyyczM7L/n3n7P3ntnZ3ZnggEw9+z0Pmdn3/b7fc77fJ/nc44F9N/u5BwF1N/GfVp/29P7h+7vE7I6Y00IAD0lA/L/7y/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+v+P/Pr/j/z6/4/8+" onerror="this.onerror=null;this.src='https://placehold.co/40x40/532A8C/C3ACE8?text=DAPA'" alt="DAPA Logo" class="object-contain w-full h-full">
+                </div>
+                <h1 class="text-xl font-bold text-dapa-primary tracking-tight">DAPA Assessment Tracker</h1>
+            </div>
+            
+            <div class="text-sm font-medium text-gray-600 hidden sm:block">
+                HLT35021 Certificate III in Dental Assisting
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <!-- Loading Spinner/Message -->
+        <div id="loading-message" class="text-center py-12 text-dapa-primary font-medium">
+            <svg class="animate-spin h-5 w-5 mr-3 inline-block text-dapa-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Initialising application...
+        </div>
+
+        <!-- Timetable Content Area (Hidden initially) -->
+        <div id="content-area" class="bg-white rounded-xl shadow-lg overflow-hidden transition-opacity duration-300 opacity-0 hidden">
+            <!-- Student Details Section -->
+            <div id="student-details" class="p-6 bg-dapa-background border-b border-dapa-primary/10">
+                <h2 class="text-lg font-semibold mb-3 text-dapa-primary">Student Details (Calculated from Course Start Date)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div><span class="font-medium text-gray-700">Student Name:</span> <span id="name-output">N/A</span></div>
+                    <div><span class="font-medium text-gray-700">Student Number:</span> <span id="number-output">N/A</span></div>
+                    <div><span class="font-medium text-gray-700">Course Start Date:</span> <span id="dates-output">N/A</span></div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto">
+                <table id="timetable-table" class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="w-1/12">Unit Code</th>
+                            <th class="w-2/12">Unit Description</th>
+                            <th class="w-1/12">Assessment</th>
+                            <th class="w-4/12">Assessment Description</th>
+                            <th class="w-2/12">Calculated Submission Date</th>
+                            <th class="w-1/12">Status</th>
+                            <th class="w-1/12 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Data rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Message Box for user feedback -->
+            <div id="message-box" class="p-4 hidden text-center text-sm font-medium rounded-b-xl border-t border-dapa-primary/10"></div>
+        </div>
+        
+    </main>
+
+    <!-- Student Details Input Modal -->
+    <div id="details-modal" class="hidden">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-11/12 max-w-lg transform transition-all duration-300 scale-100">
+            <h2 class="text-2xl font-bold mb-4 text-dapa-primary">Welcome to Your Timetable</h2>
+            <p class="text-gray-600 mb-6">Please enter your details to set up your personal assessment timeline. This information will be saved.</p>
+            
+            <form id="student-details-form" class="space-y-4">
+                <div>
+                    <label for="student-name" class="block text-sm font-medium text-gray-700 mb-1">Student Name</label>
+                    <input type="text" id="student-name" required 
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus-ring transition duration-150">
+                </div>
+                <div>
+                    <label for="student-number" class="block text-sm font-medium text-gray-700 mb-1">Student Number</label>
+                    <!-- Added pattern for visual hint, JS validation will be more robust -->
+                    <input type="text" id="student-number" required 
+                           pattern="[0-9]*" 
+                           inputmode="numeric"
+                           placeholder="e.g., 123456"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus-ring transition duration-150">
+                </div>
+                <div>
+                    <label for="course-start-date" class="block text-sm font-medium text-gray-700 mb-1">Course Start Date</label>
+                    <input type="date" id="course-start-date" required 
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus-ring transition duration-150">
+                    <p class="text-xs text-gray-500 mt-1">This date will be used to calculate all submission deadlines.</p>
+                </div>
+                
+                <button type="submit" 
+                        id="save-details-btn"
+                        class="w-full py-3 mt-6 text-lg font-semibold rounded-lg text-gray-900 bg-dapa-secondary hover:bg-dapa-accent-hover transition duration-200 shadow-md">
+                    Save and View Timetable
+                </button>
+                <!-- Centralized error display -->
+                <div id="form-error" class="text-red-500 text-sm mt-2 text-center hidden"></div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, collection, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Set Firebase logging level (optional, but good for debugging)
+        setLogLevel('debug');
+
+        // Global variables for Firebase setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let allTimetableData = [];
+        let studentDetails = {}; // Stores name, number, and start date
+
+        // DOM Elements
+        const studentNameInput = document.getElementById('student-name');
+        const studentNumberInput = document.getElementById('student-number');
+        const courseStartDateInput = document.getElementById('course-start-date');
+
+        const studentDetailsOutput = {
+            'name': document.getElementById('name-output'),
+            'number': document.getElementById('number-output'),
+            'startDate': document.getElementById('dates-output')
+        };
+        const timetableBody = document.getElementById('timetable-body');
+        const loadingMessage = document.getElementById('loading-message');
+        const contentArea = document.getElementById('content-area');
+        const messageBox = document.getElementById('message-box');
+        const detailsModal = document.getElementById('details-modal');
+        const studentDetailsForm = document.getElementById('student-details-form');
+        const formError = document.getElementById('form-error');
+
+        /**
+         * Clears all validation error states from inputs.
+         */
+        function clearValidationErrors() {
+            [studentNameInput, studentNumberInput, courseStartDateInput].forEach(input => {
+                input.classList.remove('input-error');
+            });
+            formError.classList.add('hidden');
+            formError.textContent = '';
+        }
+
+        /**
+         * Converts the CSV data into structured objects and calculates submission dates.
+         * @param {string} csvText - The raw CSV text.
+         * @param {string} courseStartDateString - The ISO date string of the course start.
+         * @returns {Array<object>} An array of timetable items.
+         */
+        function parseCsvData(csvText, courseStartDateString) {
+            const lines = csvText.trim().split('\n').filter(line => line.trim() !== '' && !line.startsWith('Unit Code')); // Skip header if present
+            
+            // 1. Initialize Date Calculation
+            let currentSubmissionDate = new Date(courseStartDateString);
+            
+            // Set the initial date to the day BEFORE the course starts, so the first duration is added to the start date.
+            // This is crucial for the calculation logic to work with the first task.
+            currentSubmissionDate.setDate(currentSubmissionDate.getDate() - 1); 
+
+            const formatter = new Intl.DateTimeFormat('en-AU', {
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            });
+
+            // 2. Process data lines
+            const items = lines.map((line, index) => {
+                // Use a simple split but handle potential commas in quotes (rudimentary)
+                let parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(p => p.trim().replace(/^"|"$/g, ''));
+                
+                // Ensure there are enough columns (at least 5 for core data + duration)
+                if (parts.length < 5) return null;
+
+                const durationString = parts[4] || '0 week'; // The new duration column
+                const weeksMatch = durationString.match(/(\d+)\s*week/i);
+                const weeks = weeksMatch ? parseInt(weeksMatch[1], 10) : 0;
+                
+                // Calculate new submission date based on duration
+                if (weeks > 0) {
+                    // Add days (weeks * 7) to the previous calculated date
+                    currentSubmissionDate.setDate(currentSubmissionDate.getDate() + (weeks * 7));
+                }
+                
+                const calculatedDateString = formatter.format(currentSubmissionDate);
+
+                return {
+                    id: `${parts[0] || 'UNK'}-${parts[2] || 'UNK'}-${index}`, // Unique key
+                    unitCode: parts[0] || 'N/A',
+                    unitDescription: parts[1] || 'N/A',
+                    assessment: parts[2] || 'N/A',
+                    assessmentDescription: parts[3] || 'N/A',
+                    duration: durationString, // Store duration for display
+                    submissionDate: calculatedDateString, // The calculated date
+                    initialStatus: parts[5] || 'To Do' // Use the last column if present, otherwise 'To Do'
+                };
+            }).filter(item => item !== null && item.unitCode);
+
+            return items;
+        }
+
+        /** Shows a temporary message in the message box. */
+        function showMessage(text, isError = false) {
+            messageBox.textContent = text;
+            // Updated status color for success message
+            messageBox.className = `p-4 text-center text-sm font-medium rounded-b-xl border-t ${isError ? 'bg-red-100 text-red-800' : 'bg-dapa-success-bg text-dapa-success-text border-dapa-primary/50'}`;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        /**
+         * Renders the timetable based on base data and user state.
+         * @param {Array<object>} baseData - The parsed data from the CSV.
+         * @param {object} userStatuses - The statuses retrieved from Firestore.
+         */
+        function renderTimetable(baseData, userStatuses) {
+            timetableBody.innerHTML = '';
+            
+            baseData.forEach(item => {
+                // Get the current status from Firestore, or use the initial CSV status
+                const currentStatus = userStatuses[item.id] || item.initialStatus || 'To Do';
+                
+                const row = document.createElement('tr');
+                row.className = `transition-all duration-200 ${currentStatus === 'Completed' ? 'row-completed' : 'bg-white'}`;
+                row.dataset.itemId = item.id;
+                
+                // Determine status badge colors
+                const badgeClass = currentStatus === 'Completed' 
+                    ? 'bg-dapa-secondary text-dapa-primary' // Light Purple badge, Deep Purple text
+                    : 'bg-gray-200 text-gray-800'; 
+                
+                // Determine button colors
+                const buttonClasses = currentStatus === 'Completed'
+                    ? 'bg-red-500 hover:bg-red-600 text-white' // Mark To Do (Danger)
+                    : 'bg-dapa-secondary hover:bg-dapa-accent-hover text-gray-900'; // Mark Complete (Accent)
+                    
+                row.innerHTML = `
+                    <td class="font-mono text-gray-700">${item.unitCode}</td>
+                    <td>${item.unitDescription}</td>
+                    <td>${item.assessment}</td>
+                    <td class="text-gray-600">
+                        ${item.assessmentDescription}
+                        <span class="block text-xs font-semibold mt-1 text-gray-500">
+                            Duration: ${item.duration || 'N/A'}
+                        </span>
+                    </td>
+                    <td class="font-semibold text-dapa-primary whitespace-nowrap">${item.submissionDate || 'N/A'}</td>
+                    <td>
+                        <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full ${badgeClass}">
+                            ${currentStatus}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <button class="toggle-status-btn px-3 py-1 text-xs font-semibold rounded-lg shadow-sm transition duration-150 ease-in-out ${buttonClasses}" data-status="${currentStatus === 'Completed' ? 'To Do' : 'Completed'}">
+                            ${currentStatus === 'Completed' ? 'Mark To Do' : 'Mark Complete'}
+                        </button>
+                    </td>
+                `;
+                
+                timetableBody.appendChild(row);
+            });
+            
+            // Re-attach event listeners after rendering
+            document.querySelectorAll('.toggle-status-btn').forEach(button => {
+                button.onclick = handleStatusToggle;
+            });
+        }
+
+        /**
+         * Renders the header details.
+         * @param {object} details - The parsed student details.
+         */
+        function renderDetails(details) {
+            studentDetailsOutput['name'].textContent = details.name || 'N/A';
+            studentDetailsOutput['number'].textContent = details.number || 'N/A';
+            studentDetailsOutput['startDate'].textContent = details.startDate ? new Date(details.startDate).toLocaleDateString('en-AU') : 'N/A';
+        }
+
+        /**
+         * Handles the click event for toggling the status of an item.
+         * @param {Event} event - The click event.
+         */
+        async function handleStatusToggle(event) {
+            const button = event.currentTarget;
+            const row = button.closest('tr');
+            const itemId = row.dataset.itemId;
+            const newStatus = button.dataset.status; // 'Completed' or 'To Do'
+
+            if (!db || !userId) {
+                showMessage('Authentication not ready. Please wait a moment.', true);
+                return;
+            }
+
+            try {
+                // Private data path for status
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'assessments', itemId);
+                
+                // Use a simple set/update for status change
+                await setDoc(docRef, { 
+                    status: newStatus, 
+                    updatedAt: new Date().toISOString() 
+                }, { merge: true });
+
+                showMessage(`Assessment ${itemId.split('-')[0]} status updated to ${newStatus}.`);
+            } catch (error) {
+                console.error("Error setting document status: ", error);
+                showMessage('Failed to update status. Check console for details.', true);
+            }
+        }
+        
+        /** Saves student details to Firestore and loads the timetable. */
+        async function saveDetails(event) {
+            event.preventDefault();
+            
+            clearValidationErrors();
+
+            const name = studentNameInput.value.trim();
+            const number = studentNumberInput.value.trim();
+            const startDate = courseStartDateInput.value; // ISO Date String: YYYY-MM-DD
+            
+            let isValid = true;
+
+            // 1. Validation Checks
+            if (!name) {
+                formError.textContent = 'Student Name is required.';
+                studentNameInput.classList.add('input-error');
+                isValid = false;
+            }
+
+            // Student Number must be numeric and not empty
+            if (!number || !/^\d+$/.test(number)) {
+                formError.textContent = 'Student Number is required and must contain only digits.';
+                studentNumberInput.classList.add('input-error');
+                isValid = false;
+            }
+            
+            // Course Start Date must be selected and a valid date
+            if (!startDate) {
+                formError.textContent = 'Course Start Date is required.';
+                courseStartDateInput.classList.add('input-error');
+                isValid = false;
+            }
+
+            if (!isValid) {
+                formError.classList.remove('hidden');
+                return;
+            }
+            
+            studentDetails = { name, number, startDate };
+            
+            if (db && userId) {
+                try {
+                    // Start date will be saved as YYYY-MM-DD string
+                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'details', 'studentInfo');
+                    await setDoc(docRef, studentDetails);
+                    showMessage('Details saved successfully!', false);
+                } catch (error) {
+                    console.error("Error saving student details:", error);
+                    showMessage('Failed to save details to the database.', true);
+                    // Continue loading timetable even if save fails
+                }
+            } else {
+                 console.warn("Not authenticated, details not saved to Firestore.");
+            }
+            
+            // Hide modal and load content
+            detailsModal.classList.add('hidden');
+            loadingMessage.classList.remove('hidden');
+            contentArea.classList.remove('hidden');
+            contentArea.classList.add('opacity-0');
+            
+            // Proceed to load data using the newly entered start date
+            fetchAndListenToData(studentDetails.startDate);
+        }
+
+        /** Fetches initial CSV data and sets up Firestore listener. */
+        async function fetchAndListenToData(courseStartDateString) {
+            
+            // Simplified CSV content (details are now entered by the user)
+            const csvText = `
+Unit Code,Unit Description,Assessment,Assessment Description,Weeks to Complete,Monthly Report
+,Let's get started!,Task 1,Introduction (Mandatory),0 week,
+Core Units,,,,,
+CHCCOM005,Communicate and work in health or community service,Task 1,The Dental Health Team,1 week,
+CHCCOM005,Communicate and work in health or community service,Task 2,Ethics and Jurisprudence,1 week,
+CHCCOM005,Communicate and work in health or community service,Task 3,Psychology for Dental Assistants,0 week,
+CHCDIV001,Work with diverse people,Task 4,"Demonstrate understanding of diversity, culture, and inclusive practice.",1 week,
+CHCDIV001,Work with diverse people,Task 5,Apply inclusive and respectful communication and work practices.,1 week,
+HLTWHS001,Participate in workplace health and safety,Task 1,Demonstrate essential WHS knowledge,1 week,
+HLTWHS001,Participate in workplace health and safety,Task 2,"Identify, assess, and control hazards",0 week,
+HLTWHS001,Participate in workplace health and safety,Task 3,Participate in WHS activities and follow emergency procedures,1 week,
+HLTINF006,Apply basic principles and practices of infection prevention and control,Task 1,Demonstrate understanding of infection control principles,1 week,
+HLTINF006,Apply basic principles and practices of infection prevention and control,Task 2,Sterilisation and Disinfection,1 week,
+HLTINF006,Apply basic principles and practices of infection prevention and control,Task 3,Asepsis, Waste Disposal, and Chemical Safety,1 week,
+HLTDEN001,Prepare for and assist with oral health care procedures,Task 1,The Dental Health Team & Oral Anatomy,1 week,
+HLTDEN001,Prepare for and assist with oral health care procedures,Task 2,Medical Emergencies & Patient Management,1 week,
+HLTDEN001,Prepare for and assist with oral health care procedures,Task 3,Assisting Procedures & Materials,1 week,
+HLTDEN002,Assist with dental radiography,Task 1,"Demonstrate knowledge of radiation safety, equipment, and protocols",1 week,
+HLTDEN002,Assist with dental radiography,Task 2,"Prepare the surgery, patient, and equipment for X-ray procedures",0 week,
+HLTDEN002,Assist with dental radiography,Task 3,Correctly process and mount conventional/digital radiographs,1 week,
+HLTDEN002,Assist with dental radiography,Task 4,Complete documentation and comply with quality assurance,0 week,
+HLTDEN003,Assist with administration in dental practice,Task 1,Communicate appropriately in a dental administrative setting,1 week,
+HLTDEN003,Assist with administration in dental practice,Task 2,Allocate appointments appropriate to patient and organisation requirements,0 week,
+HLTDEN003,Assist with administration in dental practice,Task 3,Process and reconcile patient accounts,1 week,
+HLTDEN003,Assist with administration in dental practice,Task 4,Maintain patient records,0 week,
+HLTDEN003,Assist with administration in dental practice,Task 5,Assist with patient recalls,1 week,
+Elective Units,,,,,
+HLTDEN015,Prepare for and assist with dental procedures ,Workbook 4,Specialised Fields & Patient Groups,3 weeks,
+HLTDEN016,Assist with dental radiography,Task 1,"Demonstrate knowledge of radiation safety, equipment, and protocols",1 week,
+HLTDEN016,Assist with dental radiography,Task 2,"Prepare the surgery, patient, and equipment for X-ray procedures",0 week,
+HLTDEN016,Assist with dental radiography,Task 3,Correctly process and mount conventional/digital radiographs,1 week,
+HLTDEN016,Assist with dental radiography,Task 4,Complete documentation and comply with quality assurance,0 week,
+HLTDEN017,Assist with administration in dental practice,Task 1,Communicate appropriately in a dental administrative setting,1 week,
+HLTDEN017,Assist with administration in dental practice,Task 2,Allocate appointments appropriate to patient and organisation requirements,0 week,
+HLTDEN017,Assist with administration in dental practice,Task 3,Process and reconcile patient accounts,1 week,
+HLTDEN017,Assist with administration in dental practice,Task 4,Maintain patient records,0 week,
+HLTDEN017,Assist with administration in dental practice,Task 5,Assist with patient recalls,1 week,
+BSBTEC201,Use business software applications,Task 1,Knowledge questions,1 week,
+BSBTEC201,Use business software applications,Task 2,Word processing,1 week,
+BSBTEC201,Use business software applications,Task 3,Spreadsheets,1 week,
+BSBTWK201,Work effectively with others,Task 1,Knowledge questions,1 week,
+BSBTWK201,Work effectively with others,Task 2,Reflective journal,1 week,
+HLTAID011,Provide First Aid,Task 1,Knowledge questions,1 week,
+HLTAID011,Provide First Aid,Task 2,First Aid scenario and practical demonstration,1 week,
+HLTAID011,Provide First Aid,Task 3,Reflective Journal,1 week,`;
+
+
+            // Calculate data using the provided start date
+            allTimetableData = parseCsvData(csvText, courseStartDateString);
+
+            // Render details using the stored/entered data
+            renderDetails(studentDetails);
+
+            // Now set up the Firestore listener for real-time status updates
+            if (db && userId) {
+                const assessmentsColRef = collection(db, 'artifacts', appId, 'users', userId, 'assessments');
+                
+                onSnapshot(assessmentsColRef, (snapshot) => {
+                    const userStatuses = {};
+                    snapshot.forEach((doc) => {
+                        userStatuses[doc.id] = doc.data().status;
+                    });
+                    
+                    renderTimetable(allTimetableData, userStatuses);
+                    
+                    loadingMessage.classList.add('hidden');
+                    contentArea.classList.remove('opacity-0');
+                    contentArea.classList.add('opacity-100');
+
+                }, (error) => {
+                    console.error("Error listening to Firestore:", error);
+                    showMessage("Error loading progress data. Displaying timetable without live updates.", true);
+                    
+                    // Fallback render with default status
+                    renderTimetable(allTimetableData, {});
+                    loadingMessage.classList.add('hidden');
+                    contentArea.classList.remove('opacity-0');
+                    contentArea.classList.add('opacity-100');
+                });
+            } else {
+                // If auth is still not ready, render without real-time updates as a fallback
+                renderTimetable(allTimetableData, {});
+                loadingMessage.classList.add('hidden');
+                contentArea.classList.remove('opacity-0');
+                contentArea.classList.add('opacity-100');
+            }
+        }
+        
+        /** Loads student details from Firestore if available. */
+        async function loadStudentDetails() {
+            if (db && userId) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'details', 'studentInfo');
+                    const docSnap = await getDoc(docRef);
+
+                    if (docSnap.exists() && docSnap.data().startDate) {
+                        studentDetails = docSnap.data();
+                        console.log("Loaded existing student details.");
+                        
+                        // Details found, bypass modal and load timetable
+                        detailsModal.classList.add('hidden');
+                        contentArea.classList.remove('hidden');
+                        
+                        fetchAndListenToData(studentDetails.startDate);
+                    } else {
+                        // Details not found, show the modal to collect them
+                        loadingMessage.classList.add('hidden');
+                        detailsModal.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error("Error loading student details from Firestore:", error);
+                    // On error, still show the modal to get details
+                    loadingMessage.classList.add('hidden');
+                    detailsModal.classList.remove('hidden');
+                }
+            } else {
+                // Not authenticated yet, wait for onAuthStateChanged
+            }
+        }
+
+        /** Initializes Firebase and sets up auth listener. */
+        function initFirebaseAndAuth() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                studentDetailsForm.onsubmit = saveDetails;
+                // Add event listeners to clear error styles on input change
+                [studentNameInput, studentNumberInput, courseStartDateInput].forEach(input => {
+                    input.addEventListener('input', clearValidationErrors);
+                });
+
+                // Initial sign-in attempt
+                if (initialAuthToken) {
+                    signInWithCustomToken(auth, initialAuthToken)
+                        .catch(error => {
+                            console.error("Custom token sign-in failed. Falling back to anonymous.", error);
+                            return signInAnonymously(auth);
+                        });
+                } else {
+                    signInAnonymously(auth).catch(error => {
+                        console.error("Anonymous sign-in failed.", error);
+                    });
+                }
+
+                // Auth state listener
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Authenticated with userId:", userId);
+                        
+                        // Proceed to check for saved data
+                        loadStudentDetails();
+                    } else {
+                        userId = null;
+                        console.log("No user signed in. Waiting for sign-in.");
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                showMessage("Firebase setup error. Check console.", true);
+            }
+        }
+
+        // Start the application flow
+        window.onload = initFirebaseAndAuth;
+
+    </script>
+</body>
+</html>
