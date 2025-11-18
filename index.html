@@ -154,6 +154,9 @@
         // --- Data Source for Assessments ---
         // NOTE: The assessment list is ordered chronologically by typical completion order.
         const UNIT_ASSESSMENT_DATA = [
+            // NEW TASK: Student Onboarding Activities (2 Weeks)
+            { UnitCode: 'ONBOARD', UnitDescription: 'Course Setup', AssessmentName: 'Student Onboarding Activities', AssessmentDescription: 'Completion of required enrolment, system access, and introductory setup.', Weeks: '2 weeks' },
+            
             { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction (Mandatory)', Weeks: '0 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 1', AssessmentDescription: 'The Dental Health Team', Weeks: '1 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 2', AssessmentDescription: 'Ethics and Jurisprudence', Weeks: '1 week' },
@@ -165,7 +168,7 @@
             { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 3', AssessmentDescription: 'Participate in WHS activities and follow emergency procedures', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate understanding of infection control principles', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 2', AssessmentDescription: 'Identify infection risks and select/use Personal Protective Equipment (PPE)', Weeks: '1 week' },
-            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
+            { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 4', AssessmentDescription: 'Final assessment for Infection Control', Weeks: '0 week' },
             
             // --- HLTINF002 ---
@@ -192,7 +195,10 @@
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentDescription: 'Reflective journal', Weeks: '1 week' },
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
-            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
+            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid in the Dental Setting', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
+            
+            // --- NEW FINAL SECTION ---
+            { UnitCode: 'COURSE_COMP', UnitDescription: 'Course Completion', AssessmentName: 'Final Task', AssessmentDescription: 'Trainer Assessment and Review', Weeks: '2 weeks' },
         ];
 
         // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
@@ -232,6 +238,20 @@
             const match = weeksStr.match(/(\d+)/);
             const weeks = match ? parseInt(match[1], 10) : 0;
             return weeks * 7;
+        }
+
+        /**
+         * Calculates the total duration of the course in weeks.
+         * @returns {number} The total duration in weeks.
+         */
+        function calculateTotalWeeks() {
+            let totalWeeks = 0;
+            UNIT_ASSESSMENT_DATA.forEach(item => {
+                const match = item.Weeks.match(/(\d+)/);
+                const weeks = match ? parseInt(match[1], 10) : 0;
+                totalWeeks += weeks;
+            });
+            return totalWeeks;
         }
         
         /**
@@ -392,7 +412,7 @@
                 await setDoc(getStudentDetailsDocRef(userId), newDetails, { merge: true });
                 showMessage("Student details and timetable saved successfully!");
             } catch (e) {
-                console.error("Error saving student details:", e);
+                console.error("Error saving student details.", e);
                 showMessage("Failed to save student details.", true);
             }
         }
@@ -409,8 +429,12 @@
             const container = document.getElementById('timetable-body');
             const calculatedStartDateEl = document.getElementById('display-start-date');
             const desiredEndDateEl = document.getElementById('display-end-date');
+            const durationEl = document.getElementById('display-duration');
+            
             const desiredEndDatePrintEl = document.getElementById('display-end-date-print');
             const calculatedStartDatePrintEl = document.getElementById('display-start-date-print');
+            const durationPrintEl = document.getElementById('display-duration-print');
+            
             const stretchMessage = document.getElementById('stretch-message');
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
@@ -421,12 +445,15 @@
             let latestCalculatedStartDate = null;
             let adjustedCourseEndDate = null;
             let scheduleIsStretched = false;
+            const totalWeeks = calculateTotalWeeks(); // Calculate total weeks once
 
             // Reset header display and stretch message
             calculatedStartDateEl.textContent = 'N/A';
             calculatedStartDatePrintEl.textContent = 'N/A';
             desiredEndDateEl.textContent = 'N/A';
             desiredEndDatePrintEl.textContent = 'N/A';
+            durationEl.textContent = `${totalWeeks} Weeks`; // Always show total duration
+            durationPrintEl.textContent = `${totalWeeks} Weeks`;
             stretchMessage.classList.add('hidden');
             printInfoName.textContent = studentDetails.name || 'N/A';
             printInfoNumber.textContent = studentDetails.number || 'N/A';
@@ -640,7 +667,7 @@
             </form>
         </header>
 
-        <!-- Display Calculated Dates and Warnings -->
+        <!-- Display Calculated Dates and Duration -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Start Date</p>
@@ -650,17 +677,24 @@
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">TPP End Date</p>
                 <p id="display-end-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
-            <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
-                <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Schedule Stretch Warning</p>
-                <p class="text-sm font-medium text-red-800 mt-1">The calculated start date is in the past. To meet your end date, you may need to complete tasks faster than recommended.</p>
+            <!-- NEW DURATION BLOCK -->
+            <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</p>
+                <p id="display-duration" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
+        </div>
+        
+        <!-- Schedule Stretch Warning (Moved outside the main date grid) -->
+        <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
+            <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Schedule Stretch Warning</p>
+            <p class="text-sm font-medium text-red-800 mt-1">The calculated start date is in the past. To meet your end date, you may need to complete tasks faster than recommended.</p>
         </div>
 
         <!-- Print Info Block (Shown only on Print) -->
         <div id="print-info">
             <h2 class="text-xl font-bold text-gray-800 mb-1">Assessment Timetable for HLT35021</h2>
             <p class="text-sm text-gray-600">Name: <span id="print-info-name" class="font-semibold">N/A</span> | Student #: <span id="print-info-number" class="font-semibold">N/A</span></p>
-            <p class="text-sm text-gray-600">Start Date: <span id="display-start-date-print" class="font-semibold">N/A</span> | TPP End Date: <span id="display-end-date-print" class="font-semibold">N/A</span></p>
+            <p class="text-sm text-gray-600">Start Date: <span id="display-start-date-print" class="font-semibold">N/A</span> | TPP End Date: <span id="display-end-date-print" class="font-semibold">N/A</span> | Duration: <span id="display-duration-print" class="font-semibold">N/A</span></p>
         </div>
 
         <!-- Timetable Table -->
