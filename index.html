@@ -165,7 +165,7 @@
             { UnitCode: 'CHCDIV001', UnitDescription: 'Work with diverse people', AssessmentName: 'Task 5', AssessmentDescription: 'Apply inclusive and respectful communication and work practices.', Weeks: '1 week' },
             { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate essential WHS knowledge', Weeks: '1 week' },
             { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 2', AssessmentDescription: 'Identify, assess, and control hazards', Weeks: '0 week' },
-            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 3', AssessmentDescription: 'Participate in WHS activities and follow emergency procedures', Weeks: '1 week' },
+            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in WHS activities and follow emergency procedures', AssessmentName: 'Task 3', AssessmentDescription: 'Participate in WHS activities and follow emergency procedures', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate understanding of infection control principles', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 2', AssessmentDescription: 'Identify infection risks and select/use Personal Protective Equipment (PPE)', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
@@ -178,7 +178,7 @@
             
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 1', AssessmentDescription: 'Foundational Clinic & Communication', Weeks: '5 weeks' },
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
@@ -232,12 +232,20 @@
         /**
          * Converts a "X week(s)" string into an integer number of days.
          * @param {string} weeksStr - The duration string (e.g., "1 week", "2 weeks", "0 week").
+         * @param {number} [compressionFactor=1] - Multiplier for duration (e.g., 0.2 for 80% compression).
          * @returns {number} The duration in days.
          */
-        function getDaysFromWeeks(weeksStr) {
+        function getDaysFromWeeks(weeksStr, compressionFactor = 1) {
             const match = weeksStr.match(/(\d+)/);
             const weeks = match ? parseInt(match[1], 10) : 0;
-            return weeks * 7;
+            // Apply compression and ensure non-zero tasks still take at least 1 day.
+            let days = Math.round(weeks * 7 * compressionFactor);
+            
+            // Ensure any task with an original duration > 0 is at least 1 day after compression.
+            if (weeks > 0 && days === 0) {
+                days = 1; 
+            }
+            return days;
         }
         
         /**
@@ -306,16 +314,17 @@
          * then adjusts the date to the previous available weekday. Used for backward scheduling.
          * @param {Date} baseDate - The Date object to start from (the next submission date).
          * @param {string} weeksStr - The duration string.
+         * @param {number} [compressionFactor=1] - The factor to multiply weeks by.
          * @returns {Date} The new Date object after subtracting the time and adjustment.
          */
-        function subtractWeeksFromDate(baseDate, weeksStr) {
-            const days = getDaysFromWeeks(weeksStr);
+        function subtractWeeksFromDate(baseDate, weeksStr, compressionFactor = 1) {
+            const days = getDaysFromWeeks(weeksStr, compressionFactor); // Pass factor
             
             // Start from the day *before* the submission date for the prior task
             const rawDate = new Date(baseDate.getTime());
             rawDate.setDate(rawDate.getDate() - 1); // Go back one day
             
-            // Subtract the required weeks (in days)
+            // Subtract the required days
             rawDate.setDate(rawDate.getDate() - days);
             
             // Find the nearest previous valid business day
@@ -410,6 +419,59 @@
             window.print();
         }
 
+        /**
+         * Calculates the backward schedule based on an anchor date and compression factor.
+         * @param {Array} data - The assessment data.
+         * @param {string} courseAnchorDateStr - The desired TPP End Date (YYYY-MM-DD).
+         * @param {number} compressionFactor - The factor to multiply weeks by (1.0 for standard, 0.2 for 80% compression).
+         * @returns {{calculatedSchedule: Array, latestCalculatedStartDate: Date, adjustedCourseEndDate: Date, isStretched: boolean}}
+         */
+        function calculateSchedule(data, courseAnchorDateStr, compressionFactor) {
+            // 1. Set the initial anchor date (TPP End Date)
+            // Find the last valid working day (Mon-Fri, non-holiday) on or before the user's selected date.
+            let nextSubmissionDate = getPreviousValidDate(new Date(courseAnchorDateStr));
+            const adjustedCourseEndDate = nextSubmissionDate;
+
+            const reversedData = [...data].reverse();
+            const tempSchedule = [];
+
+            for (const item of reversedData) {
+                const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, Weeks } = item;
+                
+                // The latest submission date for the current task is the date we're currently holding
+                const submissionDate = nextSubmissionDate;
+                
+                // Calculate the commencement date for this task (which is the submission date for the *previous* task)
+                const latestCommencementDate = subtractWeeksFromDate(submissionDate, Weeks, compressionFactor);
+                
+                // Store data
+                tempSchedule.push({
+                    UnitCode,
+                    UnitDescription,
+                    AssessmentName,
+                    AssessmentDescription,
+                    Weeks: item.Weeks, // Store original weeks string
+                    DurationFactor: compressionFactor, // Store factor used
+                    SubmissionDate: submissionDate,
+                });
+
+                // Set up the next calculation iteration
+                nextSubmissionDate = latestCommencementDate;
+            }
+
+            // Reverse the calculated schedule back to original order
+            const calculatedSchedule = tempSchedule.reverse();
+
+            // Determine the calculated Start Date (The commencement date of the very first task)
+            const latestCalculatedStartDate = getNextValidDate(nextSubmissionDate);
+            
+            // Check for schedule stretching (i.e., if the calculated start date is in the past)
+            const isStretched = latestCalculatedStartDate < TODAY;
+            
+            return { calculatedSchedule, latestCalculatedStartDate, adjustedCourseEndDate, isStretched };
+        }
+
+
         // --- Rendering Function (REVERSE & STRETCH LOGIC) ---
         function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
@@ -422,30 +484,29 @@
             const durationPrintEl = document.getElementById('display-duration-print');
             
             const stretchMessage = document.getElementById('stretch-message');
+            const aggressiveMessage = document.getElementById('aggressive-message'); // NEW
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
 
             if (!container) return;
 
             const courseAnchorDateStr = studentDetails.startDate; // This is the END date now
-            let latestCalculatedStartDate = null;
-            let adjustedCourseEndDate = null;
-            let scheduleIsStretched = false;
-
+            
             // Reset header display and stretch message
             calculatedStartDateEl.textContent = 'N/A';
             calculatedStartDatePrintEl.textContent = 'N/A';
             desiredEndDateEl.textContent = 'N/A';
             desiredEndDatePrintEl.textContent = 'N/A';
-            durationEl.textContent = 'N/A'; // Reset duration display
-            durationPrintEl.textContent = 'N/A'; // Reset duration display
+            durationEl.textContent = 'N/A'; 
+            durationPrintEl.textContent = 'N/A';
             stretchMessage.classList.add('hidden');
+            aggressiveMessage.classList.add('hidden'); // Hide aggressive warning
             printInfoName.textContent = studentDetails.name || 'N/A';
             printInfoNumber.textContent = studentDetails.number || 'N/A';
 
             // Clear previous schedule and display placeholder
             calculatedSchedule = [];
-            container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Enter your TPP End Date above to generate the schedule.</td></tr>'; // Colspan updated to 3
+            container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Enter your TPP End Date above to generate the schedule.</td></tr>';
 
             if (!courseAnchorDateStr) {
                 return;
@@ -474,64 +535,43 @@
             durationPrintEl.textContent = durationDisplay;
             // --- End Dynamic Duration Calculation ---
 
-
-            // 1. Set the initial anchor date (TPP End Date)
-            // Find the last valid working day (Mon-Fri, non-holiday) on or before the user's selected date.
-            let nextSubmissionDate = getPreviousValidDate(new Date(courseAnchorDateStr));
-            adjustedCourseEndDate = nextSubmissionDate;
-
-            // Display the cleaned-up end date
-            desiredEndDateEl.textContent = formatDate(adjustedCourseEndDate);
-            desiredEndDatePrintEl.textContent = formatDate(adjustedCourseEndDate);
-
-            // 2. Iterate backward through the assessment data
-            const reversedData = [...data].reverse();
-            const tempSchedule = [];
-
-            for (const item of reversedData) {
-                const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, Weeks } = item;
+            // --- Scheduling Logic ---
+            let finalResult;
+            
+            // 1. Run Standard Calculation (Factor 1.0)
+            const standardResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
+            
+            if (standardResult.isStretched) {
+                // 2. Run Aggressive Calculation (Factor 0.2 = 80% compression)
+                const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, 0.2);
                 
-                // The latest submission date for the current task is the date we're currently holding
-                const latestSubmissionDate = nextSubmissionDate;
-                
-                // Calculate the commencement date for this task (which is the submission date for the *previous* task)
-                const latestCommencementDate = subtractWeeksFromDate(latestSubmissionDate, Weeks);
-                
-                // Store data
-                tempSchedule.push({
-                    UnitCode,
-                    UnitDescription,
-                    AssessmentName,
-                    AssessmentDescription,
-                    Weeks,
-                    LatestSubmissionDate: latestSubmissionDate,
-                });
-
-                // Set up the next calculation iteration: the current commencement date becomes the next submission date
-                nextSubmissionDate = latestCommencementDate;
+                if (aggressiveResult.isStretched) {
+                    // Still stretched even after 80% compression
+                    finalResult = aggressiveResult;
+                    stretchMessage.classList.remove('hidden');
+                    // Update the text in the warning box to reflect the compressed schedule result
+                    stretchMessage.querySelector('p:nth-child(2)').textContent = 'Even with the most aggressive timeline (80% time reduction), your calculated start date is still in the past. You must start immediately.';
+                } else {
+                    // Success! Schedule works with 80% compression
+                    finalResult = aggressiveResult;
+                    aggressiveMessage.classList.remove('hidden');
+                }
+            } else {
+                // No stretch needed, use standard schedule
+                finalResult = standardResult;
             }
 
-            // 3. Reverse the calculated schedule back to original order
-            calculatedSchedule = tempSchedule.reverse();
-
-            // 4. Determine the calculated Start Date
-            // The very first task's commencement date ('nextSubmissionDate') needs to be adjusted to the next valid working day (Monday).
-            latestCalculatedStartDate = getNextValidDate(nextSubmissionDate);
+            // 3. Update Header Display based on final result
+            calculatedStartDateEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
+            calculatedStartDatePrintEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
+            desiredEndDateEl.textContent = formatDate(finalResult.adjustedCourseEndDate);
+            desiredEndDatePrintEl.textContent = formatDate(finalResult.adjustedCourseEndDate);
             
-            calculatedStartDateEl.textContent = formatDate(latestCalculatedStartDate);
-            calculatedStartDatePrintEl.textContent = formatDate(latestCalculatedStartDate);
-            
-            // 5. Check for schedule stretching (i.e., if the calculated start date is in the past)
-            if (latestCalculatedStartDate < TODAY) {
-                scheduleIsStretched = true;
-                stretchMessage.classList.remove('hidden');
-            }
-
-            // 6. Render the results
+            // 4. Render the results
             container.innerHTML = ''; // Clear placeholder
             let lastUnitCode = null;
 
-            calculatedSchedule.forEach((item) => {
+            finalResult.calculatedSchedule.forEach((item) => {
                 const isNewUnit = item.UnitCode !== lastUnitCode;
 
                 if (isNewUnit) {
@@ -548,8 +588,8 @@
 
                 lastUnitCode = item.UnitCode;
 
-                const dateString = formatDate(item.LatestSubmissionDate);
-                const isPastDue = item.LatestSubmissionDate < TODAY;
+                const dateString = formatDate(item.SubmissionDate);
+                const isPastDue = item.SubmissionDate < TODAY;
 
                 const row = document.createElement('tr');
                 // Highlight row if it is past due
@@ -559,14 +599,20 @@
 
                 row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
                 
-                // Removed the UnitCode column from here as it is now in the unit header
+                let durationText = item.Weeks;
+                if (item.DurationFactor < 1.0) {
+                    // Show compression only if it was applied
+                    const reductionPercent = Math.round((1 - item.DurationFactor) * 100);
+                    durationText = `Compressed (${reductionPercent}% Reduction) from ${item.Weeks}`;
+                }
+
                 row.innerHTML = `
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium w-1/12">
                         ${item.AssessmentName}
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-700 w-6/12">
                         ${item.AssessmentDescription}
-                        <p class="text-xs text-gray-500 italic">${item.Weeks} duration</p>
+                        <p class="text-xs text-gray-500 italic">${durationText}</p>
                     </td>
                     <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${isPastDue ? 'text-red-600' : 'text-green-600'} w-4/12">
                         ${dateString}
@@ -576,7 +622,7 @@
                 container.appendChild(row);
             });
 
-            if (calculatedSchedule.length === 0) {
+            if (finalResult.calculatedSchedule.length === 0) {
                 container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">No data available to calculate timetable.</td></tr>';
             }
         }
@@ -679,24 +725,30 @@
         <!-- Display Calculated Dates and Duration -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Start Date</p>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Calculated Start Date</p>
                 <p id="display-start-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">TPP End Date</p>
                 <p id="display-end-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
-            <!-- NEW DURATION BLOCK -->
+            <!-- DURATION BLOCK -->
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</p>
                 <p id="display-duration" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
         </div>
         
-        <!-- Schedule Stretch Warning (Moved outside the main date grid) -->
+        <!-- Schedule Stretch Warning (Original, now for un-fixable stretch) -->
         <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
-            <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Schedule Stretch Warning</p>
-            <p class="text-sm font-medium text-red-800 mt-1">The calculated start date is in the past. To meet your end date, you may need to complete tasks faster than recommended.</p>
+            <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Warning: Start Date is Before Today</p>
+            <p class="text-sm font-medium text-red-800 mt-1">To meet your end date, you may need to complete tasks faster than recommended.</p>
+        </div>
+        
+        <!-- NEW Aggressive Compression Warning -->
+        <div class="p-4 bg-yellow-100 rounded-lg shadow-md border-b-4 border-yellow-500 hidden" id="aggressive-message">
+            <p class="text-xs font-semibold text-yellow-700 uppercase tracking-wider">WARNING: AGGRESSIVE COMPRESSION APPLIED</p>
+            <p class="text-sm font-medium text-yellow-800 mt-1">The schedule below uses less time than recommended. This timeline is extremely fast and high-risk.</p>
         </div>
 
         <!-- Print Info Block (Shown only on Print) -->
@@ -713,7 +765,7 @@
                     <tr>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-1/12">Assessment</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-6/12">Assessment Description / Duration</th>
-                        <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-4/12">Latest Submission Date</th>
+                        <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-4/12">Submission Date</th>
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
