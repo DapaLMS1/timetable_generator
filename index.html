@@ -276,7 +276,7 @@
          */
         async function loadTimetableData() {
             try {
-                const response = await fetch('timetable_data.csv');
+                const response = await fetch('TIMETABLE_DATA.csv');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
