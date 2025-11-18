@@ -232,7 +232,7 @@
         /**
          * Converts a "X week(s)" string into an integer number of days.
          * @param {string} weeksStr - The duration string (e.g., "1 week", "2 weeks", "0 week").
-         * @param {number} [compressionFactor=1] - Multiplier for duration (e.g., 0.2 for 80% compression).
+         * @param {number} [compressionFactor=1] - Multiplier for duration (e.g., 0.8 for 20% compression).
          * @returns {number} The duration in days.
          */
         function getDaysFromWeeks(weeksStr, compressionFactor = 1) {
@@ -435,7 +435,7 @@
          * Calculates the backward schedule based on an anchor date and compression factor.
          * @param {Array} data - The assessment data.
          * @param {string} courseAnchorDateStr - The desired TPP End Date (YYYY-MM-DD).
-         * @param {number} compressionFactor - The factor to multiply weeks by (1.0 for standard, 0.2 for 80% compression).
+         * @param {number} compressionFactor - The factor to multiply weeks by (1.0 for standard, 0.8 for 20% compression).
          * @returns {{calculatedSchedule: Array, latestCalculatedStartDate: Date, adjustedCourseEndDate: Date, isStretched: boolean, DurationFactor: number}}
          */
         function calculateSchedule(data, courseAnchorDateStr, compressionFactor) {
@@ -568,15 +568,17 @@
             
             // --- Check 1: Is there insufficient time (Start date in the past)? ---
             if (standardResult.isStretched) {
-                // Try Aggressive Compression (Factor 0.2)
-                const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, 0.2);
+                // Try Aggressive Compression (Factor 0.8: 20% time reduction)
+                const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, 0.8);
                 
                 if (aggressiveResult.isStretched) {
-                    // Still stretched even after 80% compression (CRITICAL state)
-                    finalResult = aggressiveResult;
+                    // Still stretched even after 20% compression.
+                    // USER REQUEST: If CRITICAL, remove compression (use factor 1.0)
+                    // The timeline will still be impossible, but it shows the correct, uncompressed dates.
+                    finalResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
                     isCriticalStretch = true; 
                 } else {
-                    // Success! Schedule works with 80% compression
+                    // Success! Schedule works with 20% compression
                     finalResult = aggressiveResult;
                 }
 
@@ -619,7 +621,7 @@
             // 5. Display appropriate message and apply red color if critical
             
             if (isCriticalStretch) {
-                // CRITICAL STRETCH (80% compression failed)
+                // CRITICAL STRETCH (Maximum compression failed)
                 criticalWarningMessage.classList.remove('hidden');
                 dateElements.forEach(el => {
                     el.classList.remove('text-dapa-primary');
@@ -630,7 +632,7 @@
                 // EXTENSION APPLIED
                 extensionMessage.classList.remove('hidden');
             } else if (finalResult.DurationFactor < 1.0) {
-                // AGGRESSIVE APPLIED
+                // ACCELERATED (20% reduction) APPLIED
                 aggressiveMessage.classList.remove('hidden');
             } else if (finalResult.isStretched) {
                 // STANDARD STRETCH (Fallback for standard calculation failure)
@@ -674,6 +676,8 @@
                 if (item.DurationFactor < 1.0) {
                     // Show compression only if it was applied
                     const reductionPercent = Math.round((1 - item.DurationFactor) * 100);
+                    
+                    // Display specific percentage
                     durationText = `Compressed (${reductionPercent}% Reduction) from ${item.Weeks}`;
                 }
 
@@ -812,25 +816,24 @@
             </div>
         </div>
         
-        <!-- CRITICAL Warning Message (80% less time was still not enough) -->
+        <!-- CRITICAL Warning Message (Maximum compression was still not enough) -->
         <div class="p-4 bg-red-600 rounded-lg shadow-md border-b-4 border-red-800 text-white hidden" id="critical-warning-message">
             <p class="text-xs font-semibold uppercase tracking-wider">CRITICAL WARNING: TPP END DATE UNATTAINABLE</p>
             <p class="text-sm font-medium mt-1">
-                Even with the most aggressive timeline (80% time reduction), your calculated start date is still in the past. 
-                The schedule below is highly compressed and already shows **past due dates**. Immediate action is required.
+                The standard (uncompressed) timeline has been generated to show **past due dates**. Your requested TPP End Date cannot be met without a formal course extension.
             </p>
         </div>
         
         <!-- Schedule Stretch Warning (Standard compression failed, but not critically) -->
         <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
             <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Warning: Start Date is Before Today</p>
-            <p class="text-sm font-medium text-red-800 mt-1">To meet your end date using the standard timeline, you must start immediately. Consider the aggressive compression timeline.</p>
+            <p class="text-sm font-medium text-red-800 mt-1">To meet your end date using the standard timeline, you must start immediately. Consider the accelerated compression timeline.</p>
         </div>
         
-        <!-- Aggressive Compression Warning -->
+        <!-- Aggressive Compression Warning (Now reflects 20% reduction) -->
         <div class="p-4 bg-yellow-100 rounded-lg shadow-md border-b-4 border-yellow-500 hidden" id="aggressive-message">
-            <p class="text-xs font-semibold text-yellow-700 uppercase tracking-wider">WARNING: AGGRESSIVE COMPRESSION APPLIED</p>
-            <p class="text-sm font-medium text-yellow-800 mt-1">The schedule below uses <strong>less time</strong> than recommended. This timeline is extremely fast and high-risk.</p>
+            <p class="text-xs font-semibold text-yellow-700 uppercase tracking-wider">WARNING: ACCELERATED TIMELINE APPLIED</p>
+            <p class="text-sm font-medium text-yellow-800 mt-1">The schedule below uses a <strong>20% time reduction</strong> to meet your desired end date. This timeline is faster than recommended.</p>
         </div>
         
         <!-- Extension Applied Message -->
@@ -869,7 +872,7 @@
         <div class="flex justify-center mt-6 no-print" id="print-button-container">
             <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-2">
-                    <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v12.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15V2.5ZM15 5.5v2.5a.75.75 0 0 0 1.5 0V4a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1v1.5a.75.75 0 0 0 1.5 0V5.5ZM5 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V4.5Zm0 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-5Z" clip-rule="evenodd" />
+                    <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v12.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15V2.5ZM15 5.5v2.5a.75.75 0 0 0 1.5 0V4a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1v1.5a.75.75 0 0 0 1.5 0V5.5ZM5 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V4.5Zm0 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 0-.5-.5v-5Z" clip-rule="evenodd" />
                 </svg>
                 Print Timetable
             </button>
