@@ -131,6 +131,7 @@
         // 👆 CRITICAL: End of Configuration
         // -------------------------------------------------------------------------
         
+        // This is correctly set to null if not provided
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         let db, auth;
@@ -267,8 +268,9 @@
                 // 2. Authentication
                 let signInSuccessful = false;
 
-                // 2a. Attempt Custom Token sign-in if the token is available
-                if (initialAuthToken) {
+                // 2a. Attempt Custom Token sign-in if the token is available AND is a non-empty string.
+                // This is the critical change to avoid calling the problematic function when the token is null/undefined.
+                if (initialAuthToken && typeof initialAuthToken === 'string' && initialAuthToken.length > 0) {
                     try {
                         await signInWithCustomToken(auth, initialAuthToken);
                         console.log(`Attempting sign-in with custom token...`);
@@ -292,6 +294,7 @@
                      document.getElementById('auth-status').textContent = `✅ Success (UID: ${userId})`;
                      console.log(`✅ Authentication Successful. User ID: ${userId}`);
                 } else {
+                     // This should ideally never happen after two sign-in attempts but is a safety net
                      throw new Error("Authentication failed. User object is null after sign-in attempt.");
                 }
 
