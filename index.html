@@ -342,6 +342,18 @@
             const year = dateObj.getFullYear();
             return `${day}/${month}/${year}`;
         }
+
+        /**
+         * Formats a Date object to YYYY-MM-DD string (for date input element).
+         * @param {Date} dateObj - The Date object to format.
+         * @returns {string} Formatted date (YYYY-MM-DD).
+         */
+        function formatInputDate(dateObj) {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
         
         // --- Firebase Functions ---
         
@@ -424,7 +436,7 @@
          * @param {Array} data - The assessment data.
          * @param {string} courseAnchorDateStr - The desired TPP End Date (YYYY-MM-DD).
          * @param {number} compressionFactor - The factor to multiply weeks by (1.0 for standard, 0.2 for 80% compression).
-         * @returns {{calculatedSchedule: Array, latestCalculatedStartDate: Date, adjustedCourseEndDate: Date, isStretched: boolean}}
+         * @returns {{calculatedSchedule: Array, latestCalculatedStartDate: Date, adjustedCourseEndDate: Date, isStretched: boolean, DurationFactor: number}}
          */
         function calculateSchedule(data, courseAnchorDateStr, compressionFactor) {
             // 1. Set the initial anchor date (TPP End Date)
@@ -468,11 +480,11 @@
             // Check for schedule stretching (i.e., if the calculated start date is in the past)
             const isStretched = latestCalculatedStartDate < TODAY;
             
-            return { calculatedSchedule, latestCalculatedStartDate, adjustedCourseEndDate, isStretched };
+            return { calculatedSchedule, latestCalculatedStartDate, adjustedCourseEndDate, isStretched, DurationFactor: compressionFactor };
         }
 
 
-        // --- Rendering Function (REVERSE & STRETCH LOGIC) ---
+        // --- Rendering Function (REVERSE & STRETCH/EXTENSION LOGIC) ---
         function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
             const calculatedStartDateEl = document.getElementById('display-start-date');
@@ -484,9 +496,15 @@
             const durationPrintEl = document.getElementById('display-duration-print');
             
             const stretchMessage = document.getElementById('stretch-message');
-            const aggressiveMessage = document.getElementById('aggressive-message'); // NEW
+            const aggressiveMessage = document.getElementById('aggressive-message'); 
+            const extensionMessage = document.getElementById('extension-message');
+            const criticalWarningMessage = document.getElementById('critical-warning-message'); // NEW
+
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
+            
+            const dateElements = [calculatedStartDateEl, desiredEndDateEl, calculatedStartDatePrintEl, desiredEndDatePrintEl];
+
 
             if (!container) return;
 
@@ -499,8 +517,19 @@
             desiredEndDatePrintEl.textContent = 'N/A';
             durationEl.textContent = 'N/A'; 
             durationPrintEl.textContent = 'N/A';
+            
+            // Reset all messages
             stretchMessage.classList.add('hidden');
-            aggressiveMessage.classList.add('hidden'); // Hide aggressive warning
+            aggressiveMessage.classList.add('hidden'); 
+            extensionMessage.classList.add('hidden'); 
+            criticalWarningMessage.classList.add('hidden');
+            
+            // Reset date colors to default primary
+            dateElements.forEach(el => {
+                el.classList.remove('text-red-600');
+                el.classList.add('text-dapa-primary');
+            });
+            
             printInfoName.textContent = studentDetails.name || 'N/A';
             printInfoNumber.textContent = studentDetails.number || 'N/A';
 
@@ -512,22 +541,16 @@
                 return;
             }
 
-            // --- Dynamic Duration Calculation ---
+            // --- Dynamic Duration Calculation (Initial Time Span) ---
             const endDateObj = new Date(courseAnchorDateStr);
             endDateObj.setHours(12, 0, 0, 0); // Normalize to noon
             
-            // Calculate difference in milliseconds
             const timeDiff = endDateObj.getTime() - TODAY.getTime();
-            
             let durationWeeks = 0;
             if (timeDiff > 0) {
-                 // Calculate difference in days, round up to nearest whole week
                 const dayDiff = timeDiff / (1000 * 60 * 60 * 24);
                 durationWeeks = Math.ceil(dayDiff / 7); 
-            } else {
-                durationWeeks = 0; // End date is today or in the past
             }
-
             const durationDisplay = `${durationWeeks} Weeks Remaining`;
 
             // Update duration display
@@ -537,37 +560,85 @@
 
             // --- Scheduling Logic ---
             let finalResult;
-            
+            let isExtendedSchedule = false;
+            let isCriticalStretch = false; // Flag for 80% compression failure
+
             // 1. Run Standard Calculation (Factor 1.0)
             const standardResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
             
+            // --- Check 1: Is there insufficient time (Start date in the past)? ---
             if (standardResult.isStretched) {
-                // 2. Run Aggressive Calculation (Factor 0.2 = 80% compression)
+                // Try Aggressive Compression (Factor 0.2)
                 const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, 0.2);
                 
                 if (aggressiveResult.isStretched) {
-                    // Still stretched even after 80% compression
+                    // Still stretched even after 80% compression (CRITICAL state)
                     finalResult = aggressiveResult;
-                    stretchMessage.classList.remove('hidden');
-                    // Update the text in the warning box to reflect the compressed schedule result
-                    stretchMessage.querySelector('p:nth-child(2)').textContent = 'Even with the most aggressive timeline (80% time reduction), your calculated start date is still in the past. You must start immediately.';
+                    isCriticalStretch = true; 
                 } else {
                     // Success! Schedule works with 80% compression
                     finalResult = aggressiveResult;
-                    aggressiveMessage.classList.remove('hidden');
                 }
+
+            // --- Check 2: Is there excess time (Start date in the future)? ---
+            } else if (standardResult.latestCalculatedStartDate > TODAY) {
+                
+                const actualStartTime = getNextValidDate(TODAY); // The start date we *want*
+                const calculatedStartTime = standardResult.latestCalculatedStartDate; // The date the backward calculation returned
+                
+                // Calculate the difference in days to shift the timeline forward
+                const timeDifferenceMs = calculatedStartTime.getTime() - actualStartTime.getTime();
+                const shiftDays = Math.ceil(timeDifferenceMs / (1000 * 60 * 60 * 24));
+                
+                if (shiftDays > 0) {
+                    // 2. Extend the TPP End Date (anchor) by the gap duration
+                    const newAnchorDate = new Date(standardResult.adjustedCourseEndDate.getTime());
+                    newAnchorDate.setDate(newAnchorDate.getDate() + shiftDays);
+                    
+                    // 3. Recalculate the schedule backward from the extended end date
+                    const newAnchorDateStr = formatInputDate(newAnchorDate);
+                    
+                    finalResult = calculateSchedule(data, newAnchorDateStr, 1.0);
+                    isExtendedSchedule = true;
+                } else {
+                    // Start date is exactly today (or next valid day), use standard result
+                    finalResult = standardResult;
+                }
+
             } else {
-                // No stretch needed, use standard schedule
+                // Start date is exactly TODAY or the next valid day
                 finalResult = standardResult;
             }
 
-            // 3. Update Header Display based on final result
+            // 4. Update Header Display based on final result
             calculatedStartDateEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
             calculatedStartDatePrintEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
             desiredEndDateEl.textContent = formatDate(finalResult.adjustedCourseEndDate);
             desiredEndDatePrintEl.textContent = formatDate(finalResult.adjustedCourseEndDate);
             
-            // 4. Render the results
+            // 5. Display appropriate message and apply red color if critical
+            
+            if (isCriticalStretch) {
+                // CRITICAL STRETCH (80% compression failed)
+                criticalWarningMessage.classList.remove('hidden');
+                dateElements.forEach(el => {
+                    el.classList.remove('text-dapa-primary');
+                    el.classList.add('text-red-600');
+                });
+
+            } else if (isExtendedSchedule) {
+                // EXTENSION APPLIED
+                extensionMessage.classList.remove('hidden');
+            } else if (finalResult.DurationFactor < 1.0) {
+                // AGGRESSIVE APPLIED
+                aggressiveMessage.classList.remove('hidden');
+            } else if (finalResult.isStretched) {
+                // STANDARD STRETCH (Fallback for standard calculation failure)
+                stretchMessage.classList.remove('hidden');
+            }
+
+
+            // 6. Render the results
             container.innerHTML = ''; // Clear placeholder
             let lastUnitCode = null;
 
@@ -726,10 +797,12 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Calculated Start Date</p>
-                <p id="display-start-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
+                <!-- Color will be applied via JavaScript if critical stretch is detected -->
+                <p id="display-start-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p> 
             </div>
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">TPP End Date</p>
+                <!-- Color will be applied via JavaScript if critical stretch is detected -->
                 <p id="display-end-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
             <!-- DURATION BLOCK -->
@@ -739,16 +812,31 @@
             </div>
         </div>
         
-        <!-- Schedule Stretch Warning (Original, now for un-fixable stretch) -->
-        <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
-            <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Warning: Start Date is Before Today</p>
-            <p class="text-sm font-medium text-red-800 mt-1">To meet your end date, you may need to complete tasks faster than recommended.</p>
+        <!-- CRITICAL Warning Message (80% less time was still not enough) -->
+        <div class="p-4 bg-red-600 rounded-lg shadow-md border-b-4 border-red-800 text-white hidden" id="critical-warning-message">
+            <p class="text-xs font-semibold uppercase tracking-wider">CRITICAL WARNING: TPP END DATE UNATTAINABLE</p>
+            <p class="text-sm font-medium mt-1">
+                Even with the most aggressive timeline (80% time reduction), your calculated start date is still in the past. 
+                The schedule below is highly compressed and already shows **past due dates**. Immediate action is required.
+            </p>
         </div>
         
-        <!-- NEW Aggressive Compression Warning -->
+        <!-- Schedule Stretch Warning (Standard compression failed, but not critically) -->
+        <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
+            <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Warning: Start Date is Before Today</p>
+            <p class="text-sm font-medium text-red-800 mt-1">To meet your end date using the standard timeline, you must start immediately. Consider the aggressive compression timeline.</p>
+        </div>
+        
+        <!-- Aggressive Compression Warning -->
         <div class="p-4 bg-yellow-100 rounded-lg shadow-md border-b-4 border-yellow-500 hidden" id="aggressive-message">
             <p class="text-xs font-semibold text-yellow-700 uppercase tracking-wider">WARNING: AGGRESSIVE COMPRESSION APPLIED</p>
-            <p class="text-sm font-medium text-yellow-800 mt-1">The schedule below uses less time than recommended. This timeline is extremely fast and high-risk.</p>
+            <p class="text-sm font-medium text-yellow-800 mt-1">The schedule below uses <strong>less time</strong> than recommended. This timeline is extremely fast and high-risk.</p>
+        </div>
+        
+        <!-- Extension Applied Message -->
+        <div class="p-4 bg-blue-100 rounded-lg shadow-md border-b-4 border-blue-500 hidden" id="extension-message">
+            <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">EXTENSION APPLIED</p>
+            <p class="text-sm font-medium text-blue-800 mt-1">Your timeline has been extended to use all available time between today and your TPP End Date.</p>
         </div>
 
         <!-- Print Info Block (Shown only on Print) -->
