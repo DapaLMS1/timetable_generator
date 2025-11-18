@@ -309,11 +309,19 @@
 
         function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
+            const startDateEl = document.getElementById('display-start-date');
+            const endDateEl = document.getElementById('display-end-date');
+
             if (!container) return;
 
             let html = '';
             let currentUnitCode = null;
             const startDateStr = studentDetails.startDate; // Get the start date string (YYYY-MM-DD)
+            let lastSubmissionDate = null; // To track the final end date
+
+            // Reset header display
+            startDateEl.textContent = 'N/A';
+            endDateEl.textContent = 'N/A';
 
             // Guard clause for missing start date
             if (!startDateStr) {
@@ -335,6 +343,7 @@
 
             // Adjust the start date itself if it's a weekend/holiday
             currentCompletionDate = getNextValidDate(currentCompletionDate);
+            startDateEl.textContent = formatDate(currentCompletionDate); // Set the actual adjusted start date
 
             data.forEach((item) => {
                 
@@ -344,6 +353,7 @@
                 
                 // 2. Format the date display. All non-error dates are consistently bold.
                 const dateDisplay = formatDate(currentCompletionDate);
+                lastSubmissionDate = currentCompletionDate; // Update the final date
 
                 // Start of a new unit group header row
                 if (item.UnitCode !== currentUnitCode) {
@@ -376,6 +386,11 @@
             });
 
             container.innerHTML = html;
+            
+            // Set the final end date in the header
+            if (lastSubmissionDate) {
+                 endDateEl.textContent = formatDate(lastSubmissionDate);
+            }
         }
 
 
@@ -463,7 +478,14 @@
         <!-- Header Section -->
         <div class="header-section mb-6">
             <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 Dental Assisting Timetable</h1>
-            <!-- Updated description text -->
+            
+            <!-- NEW DATE DISPLAY BLOCK -->
+            <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700 font-semibold mb-3">
+                <p>Start Date: <span id="display-start-date" class="text-green-600 font-extrabold">N/A</span></p>
+                <p>Estimated Completion: <span id="display-end-date" class="text-red-500 font-extrabold">N/A</span></p>
+            </div>
+            <!-- END NEW DATE DISPLAY BLOCK -->
+
             <p class="text-gray-600 mb-2">Review your estimated submission schedule below based on your course start date.</p>
             <p class="text-sm text-gray-500 italic border-l-4 border-yellow-500 pl-3 py-1 bg-yellow-50 rounded-md">
                 Submission dates automatically adjust to the next business day if they fall on a weekend or a public holiday. 
