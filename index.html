@@ -73,9 +73,7 @@
         // Normalize Today's Date to midnight for clean comparison
         const TODAY = (() => {
             const d = new Date();
-            // Set time to the end of the day yesterday (23:59:59), then reset to midnight.
-            // This ensures that "today" (Tues 18th) is treated as a valid day to start work.
-            d.setDate(d.getDate());
+            // Set time to midnight for comparison purposes
             d.setHours(0, 0, 0, 0); 
             return d;
         })();
@@ -93,40 +91,41 @@
             { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 3', AssessmentDescription: 'Participate in WHS activities and follow emergency procedures', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate understanding of infection control principles', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 2', AssessmentDescription: 'Identify infection risks and select/use Personal Protective Equipment (PPE)', Weeks: '1 week' },
-            { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard principles and practices of infection prevention and control', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
+            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 4', AssessmentDescription: 'Final assessment for Infection Control', Weeks: '0 week' },
             
             // --- HLTINF002 ---
             { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 5', AssessmentDescription: 'Drying, Inspection, and Packaging', Weeks: '1 week' },
-            { UnitCode: 'HLTINF002', UnitCode: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 6', AssessmentDescription: 'Operating the Steriliser (Autoclave)', Weeks: '0 week' },
+            { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 6', AssessmentDescription: 'Operating the Steriliser (Autoclave)', Weeks: '0 week' },
             // --- END HLTINF002 ---
             
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 1', AssessmentDescription: 'Foundational Clinic & Communication', Weeks: '5 weeks' },
-            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
             { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 1', AssessmentDescription: 'Communicate appropriately in a dental administrative setting', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with administration in dental practice', AssessmentName: 'Task 3', AssessmentDescription: 'Process and reconcile patient accounts', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with administration in dental practice', AssessmentName: 'Task 4', AssessmentDescription: 'Maintain patient records', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with patient recalls', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 3', AssessmentDescription: 'Process and reconcile patient accounts', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 4', AssessmentDescription: 'Maintain patient records', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with patient recalls', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
             { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitCode: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitCode: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
             // Corrected AssessmentName/AssessmentDescription mapping
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentDescription: 'Reflective journal', Weeks: '1 week' },
             
             // HLTAID011 MOVED TO END
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
-            { UnitCode: 'HLTAID011', UnitCode: 'Provide First Aid', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
+            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
         ];
 
         // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
+        // NOTE: This array should be dynamically updated for the current year in a real deployment
         const PUBLIC_HOLIDAYS = [
             "2026-01-01", // New Year's Day
             "2026-01-26", // Australia Day
@@ -278,6 +277,7 @@
                 } else {
                     console.log("No student details found. Using defaults/empty.");
                 }
+                // Always render the timetable based on stored details or defaults
                 renderTimetable(UNIT_ASSESSMENT_DATA); 
 
             } catch (e) {
@@ -522,11 +522,6 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                setPersistence(auth, browserLocalPersistence)
-                    .catch(error => {
-                        console.error("Failed to set persistence:", error.code, error.message);
-                    });
-
                 const signInProcedure = async () => {
                     if (initialAuthToken) {
                         return signInWithCustomToken(auth, initialAuthToken)
@@ -588,7 +583,7 @@
         
         <!-- Header Section -->
         <div class="header-section mb-6">
-            <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 Dental Assisting Timetable</h1>
+            <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 DAPA Assessment Timetable</h1>
             
             <!-- DATE DISPLAY BLOCK (LABELS SWAPPED) -->
             <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700 font-semibold mb-3">
