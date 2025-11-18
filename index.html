@@ -22,6 +22,7 @@
         .bg-dapa-secondary { background-color: var(--dapa-secondary); }
         .text-dapa-secondary { color: var(--dapa-secondary); }
         .bg-dapa-background { background-color: var(--dapa-background); }
+        .hover\:bg-dapa-accent-hover:hover { background-color: var(--dapa-accent-hover); }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -30,6 +31,7 @@
         .timetable-container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 1rem;
         }
         .header-section {
             background-color: white;
@@ -53,7 +55,10 @@
             right: 1rem;
             z-index: 50;
         }
-
+        /* Print Info Block (hidden by default) */
+        #print-info {
+            display: none;
+        }
         /* --- Print Styles --- */
         @media print {
             body {
@@ -147,6 +152,7 @@
         })();
 
         // --- Data Source for Assessments ---
+        // NOTE: The assessment list is ordered chronologically by typical completion order.
         const UNIT_ASSESSMENT_DATA = [
             { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction (Mandatory)', Weeks: '0 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 1', AssessmentDescription: 'The Dental Health Team', Weeks: '1 week' },
@@ -172,7 +178,7 @@
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 1', AssessmentDescription: 'Communicate appropriately in a dental administrative setting', Weeks: '1 week' },
@@ -184,28 +190,17 @@
             { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
             { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
-            // Corrected AssessmentName/AssessmentDescription mapping
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentDescription: 'Reflective journal', Weeks: '1 week' },
-            
-            // HLTAID011 MOVED TO END
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
         ];
 
         // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
-        // NOTE: This array should be dynamically updated for the current year in a real deployment
+        // NOTE: Holidays are included for demonstration of date skipping logic
         const PUBLIC_HOLIDAYS = [
-            "2026-01-01", // New Year's Day
-            "2026-01-26", // Australia Day
-            "2026-04-03", // Good Friday
-            "2026-04-04", // Easter Saturday
-            "2026-04-05", // Easter Sunday
-            "2026-04-06", // Easter Monday
-            "2026-04-27", // Anzac Day (Observed Monday)
-            "2026-06-08", // King's Birthday
-            "2026-10-05", // Labour Day
-            "2026-12-25", // Christmas Day
-            "2026-12-28", // Boxing Day (Observed Monday)
+            "2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", 
+            "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", 
+            "2026-10-05", "2026-12-25", "2026-12-28", 
         ];
         
         // Firestore path helper for student details
@@ -271,6 +266,9 @@
         function getPreviousValidDate(date) {
             const validDate = new Date(date.getTime()); // Work with a copy
 
+            // Set time to noon to avoid daylight savings/timezone issues when moving date
+            validDate.setHours(12, 0, 0, 0); 
+
             // Keep subtracting a day until it's a weekday and not a holiday
             while (isWeekend(validDate) || isHoliday(validDate)) {
                 validDate.setDate(validDate.getDate() - 1);
@@ -285,6 +283,9 @@
          */
         function getNextValidDate(date) {
             const validDate = new Date(date.getTime()); // Work with a copy
+            
+            // Set time to noon to avoid daylight savings/timezone issues when moving date
+            validDate.setHours(12, 0, 0, 0); 
 
             // Keep adding a day until it's a weekday and not a holiday
             while (isWeekend(validDate) || isHoliday(validDate)) {
@@ -345,59 +346,57 @@
                     
                     document.getElementById('student-name').value = studentDetails.name || '';
                     document.getElementById('student-number').value = studentDetails.number || '';
-                    
+
                     if (studentDetails.startDate) {
+                        // Firebase stores the date string in the 'startDate' field (as the anchor/end date)
                         endDateInput.value = studentDetails.startDate; 
                     } else {
                         endDateInput.value = '';
                     }
-                    
                 } else {
                     console.log("No student details found. Using defaults/empty.");
                 }
                 // Always render the timetable based on stored details or defaults
-                renderTimetable(UNIT_ASSESSMENT_DATA); 
-
+                renderTimetable(UNIT_ASSESSMENT_DATA);
             } catch (e) {
                 console.error("Error loading student details:", e);
                 showMessage("Failed to load student details.", true);
-                renderTimetable(UNIT_ASSESSMENT_DATA); 
+                renderTimetable(UNIT_ASSESSMENT_DATA);
             }
-        }
+        } 
 
         async function handleSaveDetails(e) {
             e.preventDefault();
-            
             const courseAnchorDate = document.getElementById('course-end-date').value.trim();
-            
+
             if (!courseAnchorDate) {
-                showMessage("Please select a Desired Course End Date.", true);
+                showMessage("Please select a TPP End Date.", true);
                 return;
             }
 
-            const newDetails = {
-                name: document.getElementById('student-name').value.trim(),
-                number: document.getElementById('student-number').value.trim(),
+            const newDetails = { 
+                name: document.getElementById('student-name').value.trim(), 
+                number: document.getElementById('student-number').value.trim(), 
                 startDate: courseAnchorDate, // Store the anchor date (End Date) in the 'startDate' field
             };
             
             studentDetails = newDetails;
             renderTimetable(UNIT_ASSESSMENT_DATA);
-            
-            if (!isSavingEnabled || !userId || !db) { 
-                showMessage("Calculation complete. Cannot save data with dummy Firebase configuration.", true); 
+
+            if (!isSavingEnabled || !userId || !db) {
+                showMessage("Calculation complete. Cannot save data with dummy Firebase configuration.", true);
                 return;
             }
-            
+
             try {
                 await setDoc(getStudentDetailsDocRef(userId), newDetails, { merge: true });
-                showMessage("Student details saved successfully!");
+                showMessage("Student details and timetable saved successfully!");
             } catch (e) {
                 console.error("Error saving student details:", e);
                 showMessage("Failed to save student details.", true);
             }
         }
-        
+
         /**
          * Trigger the browser's print dialog.
          */
@@ -406,12 +405,12 @@
         }
 
         // --- Rendering Function (REVERSE & STRETCH LOGIC) ---
-
         function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
-            const calculatedStartDateEl = document.getElementById('display-start-date'); 
+            const calculatedStartDateEl = document.getElementById('display-start-date');
             const desiredEndDateEl = document.getElementById('display-end-date');
             const desiredEndDatePrintEl = document.getElementById('display-end-date-print');
+            const calculatedStartDatePrintEl = document.getElementById('display-start-date-print');
             const stretchMessage = document.getElementById('stretch-message');
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
@@ -419,394 +418,278 @@
             if (!container) return;
 
             const courseAnchorDateStr = studentDetails.startDate; // This is the END date now
-            let latestCalculatedStartDate = null; 
+            let latestCalculatedStartDate = null;
             let adjustedCourseEndDate = null;
             let scheduleIsStretched = false;
 
             // Reset header display and stretch message
             calculatedStartDateEl.textContent = 'N/A';
+            calculatedStartDatePrintEl.textContent = 'N/A';
             desiredEndDateEl.textContent = 'N/A';
             desiredEndDatePrintEl.textContent = 'N/A';
             stretchMessage.classList.add('hidden');
             printInfoName.textContent = studentDetails.name || 'N/A';
             printInfoNumber.textContent = studentDetails.number || 'N/A';
-            
-            // Clear previous schedule
+
+            // Clear previous schedule and display placeholder
             calculatedSchedule = [];
+            container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Enter your TPP End Date above to generate the schedule.</td></tr>'; // Colspan updated to 3
 
             if (!courseAnchorDateStr) {
-                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Please enter a Desired Course End Date and click "Save Details & Calculate Dates" to generate the schedule.</td></tr>';
-                return;
-            }
-            
-            // 1. Initialize End Date and adjust it to the previous valid business day
-            let currentSubmissionDate = new Date(courseAnchorDateStr);
-            currentSubmissionDate.setHours(12, 0, 0, 0); 
-            
-            if (isNaN(currentSubmissionDate.getTime())) {
-                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Invalid Course End Date. Please correct the date input.</td></tr>';
                 return;
             }
 
-            // The final assessment must be submitted on or before the adjusted end date
-            adjustedCourseEndDate = getPreviousValidDate(currentSubmissionDate);
-            const endDateFormatted = formatDate(adjustedCourseEndDate);
-            desiredEndDateEl.textContent = endDateFormatted;
-            desiredEndDatePrintEl.textContent = endDateFormatted;
+            // 1. Set the initial anchor date (TPP End Date)
+            // Find the last valid working day (Mon-Fri, non-holiday) on or before the user's selected date.
+            let nextSubmissionDate = getPreviousValidDate(new Date(courseAnchorDateStr));
+            adjustedCourseEndDate = nextSubmissionDate;
 
-            // --- SCENARIO 1: BACKWARD CALCULATION (Default) ---
-            
-            let tempTimetable = [];
-            
-            // The first assessment's submission date is the adjusted course end date
-            let rollingDateBackward = adjustedCourseEndDate;
+            // Display the cleaned-up end date
+            desiredEndDateEl.textContent = formatDate(adjustedCourseEndDate);
+            desiredEndDatePrintEl.textContent = formatDate(adjustedCourseEndDate);
 
-            // Iterate BACKWARDS through the assessment data
-            for (let i = data.length - 1; i >= 0; i--) {
-                const item = data[i];
+            // 2. Iterate backward through the assessment data
+            const reversedData = [...data].reverse();
+            const tempSchedule = [];
 
-                // The calculated submission date for assessment 'i'
-                const submissionDate = rollingDateBackward;
+            for (const item of reversedData) {
+                const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, Weeks } = item;
                 
-                if (i === 0) {
-                    latestCalculatedStartDate = submissionDate; 
-                }
-
-                tempTimetable.push({
-                    ...item,
-                    CalculatedDate: submissionDate
+                // The latest submission date for the current task is the date we're currently holding
+                const latestSubmissionDate = nextSubmissionDate;
+                
+                // Calculate the commencement date for this task (which is the submission date for the *previous* task)
+                const latestCommencementDate = subtractWeeksFromDate(latestSubmissionDate, Weeks);
+                
+                // Store data
+                tempSchedule.push({
+                    UnitCode,
+                    UnitDescription,
+                    AssessmentName,
+                    AssessmentDescription,
+                    Weeks,
+                    LatestSubmissionDate: latestSubmissionDate,
                 });
 
-                // Calculate the submission date for the * previous* assessment, starting from the day *before* the current submission date minus the duration
-                rollingDateBackward = subtractWeeksFromDate(submissionDate, item.Weeks);
+                // Set up the next calculation iteration: the current commencement date becomes the next submission date
+                nextSubmissionDate = latestCommencementDate;
             }
 
-            tempTimetable.reverse();
-            calculatedSchedule = tempTimetable; // Store the calculated schedule
+            // 3. Reverse the calculated schedule back to original order
+            calculatedSchedule = tempSchedule.reverse();
 
-            // 2. CHECK: If the calculated start date is in the past, switch to Dynamic Apportionment
-            // Check if the calculated ideal start date is BEFORE today's date (at noon)
-            if (latestCalculatedStartDate.getTime() < TODAY.getTime()) {
-                
-                // --- SCENARIO 2: STRETCHING REQUIRED (Proportional Apportionment) ---
-                
-                // a) Calculate Total Required Effort (in calendar days, based on 'Weeks' field)
-                let totalRequiredCalendarDays = 0;
-                UNIT_ASSESSMENT_DATA.forEach(item => {
-                    totalRequiredCalendarDays += getDaysFromWeeks(item.Weeks); 
-                });
-                
-                // b) Determine Available Calendar Days (simple difference from Today to End Date)
-                const msInDay = 24 * 60 * 60 * 1000;
-                
-                // Start from the next valid business day on or after today
-                const actualStartDate = getNextValidDate(TODAY);
-                
-                // We use adjustedCourseEndDate (already adjusted to a business day)
-                let timeDifferenceMs = adjustedCourseEndDate.getTime() - actualStartDate.getTime();
-                
-                // Only stretch if there is a meaningful duration of days between today and the end date
-                if (timeDifferenceMs > 0 && totalRequiredCalendarDays > 0) {
-                    scheduleIsStretched = true;
-                    // Total available time in days (plus 1 to include the last day)
-                    const totalAvailableCalendarDays = Math.floor(timeDifferenceMs / msInDay) + 1; 
-
-                    // c) Calculate the Day Multiplier (Stretching factor)
-                    let dayMultiplier = totalAvailableCalendarDays / totalRequiredCalendarDays;
-                    
-                    // d) Recalculate Forward
-                    // Start rolling date calculation from the actual calculated start date (today or next business day)
-                    let rollingDateForward = actualStartDate;
-                    let stretchedTimetable = [];
-                    let totalDaysAdded = 0;
-
-                    UNIT_ASSESSMENT_DATA.forEach((item, index) => {
-                        const requiredDays = getDaysFromWeeks(item.Weeks);
-                        let daysToAdd = 0;
-                        
-                        // APPORTIONMENT: Apply multiplier proportionally to the required time
-                        if (requiredDays > 0) {
-                            // Calculate days, rounding up
-                            daysToAdd = Math.ceil(requiredDays * dayMultiplier);
-                        } 
-                        
-                        // Start calculating the new date from the day *after* the previous submission
-                        const currentTaskStartDate = new Date(rollingDateForward.getTime());
-                        
-                        // If it's the very first task, the start date is the actual start date
-                        if (index !== 0) {
-                            currentTaskStartDate.setDate(currentTaskStartDate.getDate() + 1);
-                        }
-
-                        // Add the calculated stretched days to find the raw submission date
-                        const rawSubmissionDate = new Date(currentTaskStartDate.getTime());
-                        rawSubmissionDate.setDate(rawSubmissionDate.getDate() + daysToAdd);
-                        
-                        // Adjust the raw submission date to the previous valid business day
-                        let submissionDate = getPreviousValidDate(rawSubmissionDate);
-                        
-                        // If this is the final assessment, force it to the adjustedCourseEndDate
-                        if (index === UNIT_ASSESSMENT_DATA.length - 1) {
-                            submissionDate = adjustedCourseEndDate;
-                        }
-
-                        // The next rolling start date is based on the submission date of the current task
-                        rollingDateForward = submissionDate; 
-                        
-                        stretchedTimetable.push({
-                            ...item,
-                            CalculatedDate: submissionDate
-                        });
-                    });
-
-                    // Use the stretched timetable for rendering
-                    calculatedSchedule = stretchedTimetable;
-                    latestCalculatedStartDate = actualStartDate; // The new start date is the first valid day on or after today
-
-                }
+            // 4. Determine the calculated Start Date
+            // The very first task's commencement date ('nextSubmissionDate') needs to be adjusted to the next valid working day (Monday).
+            latestCalculatedStartDate = getNextValidDate(nextSubmissionDate);
+            
+            calculatedStartDateEl.textContent = formatDate(latestCalculatedStartDate);
+            calculatedStartDatePrintEl.textContent = formatDate(latestCalculatedStartDate);
+            
+            // 5. Check for schedule stretching (i.e., if the calculated start date is in the past)
+            if (latestCalculatedStartDate < TODAY) {
+                scheduleIsStretched = true;
+                stretchMessage.classList.remove('hidden');
             }
 
-
-            // 3. Render the final HTML table
-            let html = '';
-            let currentUnitCode = null;
+            // 6. Render the results
+            container.innerHTML = ''; // Clear placeholder
+            let lastUnitCode = null;
 
             calculatedSchedule.forEach((item) => {
-                
-                const dateDisplay = formatDate(item.CalculatedDate);
+                const isNewUnit = item.UnitCode !== lastUnitCode;
 
-                // Start of a new unit group header row
-                if (item.UnitCode !== currentUnitCode) {
-                    currentUnitCode = item.UnitCode;
-                    html += `
-                        <tr class="bg-gray-100 font-bold text-dapa-primary">
-                            <td colspan="4" class="px-4 py-2 border-t-4 border-dapa-primary">
-                                ${item.UnitCode === 'INTRO' ? item.UnitDescription : item.UnitCode + ' - ' + item.UnitDescription}
-                            </td>
-                        </tr>
+                if (isNewUnit) {
+                    // Insert the section break row for the new unit
+                    const unitHeaderRow = document.createElement('tr');
+                    unitHeaderRow.className = 'bg-dapa-secondary/50 border-t-8 border-dapa-primary';
+                    unitHeaderRow.innerHTML = `
+                        <td colspan="3" class="px-4 py-2 font-extrabold text-dapa-primary">
+                            ${item.UnitCode}: ${item.UnitDescription}
+                        </td>
                     `;
+                    container.appendChild(unitHeaderRow);
                 }
 
-                // Assessment Row
-                html += `
-                    <tr class="timetable-row border-b border-gray-200 bg-white" data-unit-code="${item.UnitCode}" data-assessment-name="${item.AssessmentName}">
-                        <!-- Unit Code (w-1/12) -->
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900 w-1/12">${item.UnitCode === 'INTRO' ? '' : item.UnitCode}</td>
-                        <!-- Assessment (w-1/12) -->
-                        <td class="px-4 py-3 text-sm text-gray-700 w-1/12">${item.AssessmentName}</td>
-                        <!-- Assessment Description (w-6/12 - Adjusted width) -->
-                        <td class="px-4 py-3 text-sm text-gray-700 max-w-md w-6/12">${item.AssessmentDescription}</td>
-                        <!-- Latest Submission Date (w-4/12 - Adjusted width) -->
-                        <td class="px-4 py-3 text-center text-sm text-dapa-primary font-bold w-4/12">
-                            ${dateDisplay}
-                        </td>
-                    </tr>
+                lastUnitCode = item.UnitCode;
+
+                const dateString = formatDate(item.LatestSubmissionDate);
+                const isPastDue = item.LatestSubmissionDate < TODAY;
+
+                const row = document.createElement('tr');
+                // Highlight row if it is past due
+                const rowClasses = isPastDue 
+                    ? 'bg-red-100 hover:bg-red-200' 
+                    : 'bg-white hover:bg-dapa-secondary/30';
+
+                row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
+                
+                // Removed the UnitCode column from here as it is now in the unit header
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium w-1/12">
+                        ${item.AssessmentName}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-700 w-6/12">
+                        ${item.AssessmentDescription}
+                        <p class="text-xs text-gray-500 italic">${item.Weeks} duration</p>
+                    </td>
+                    <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${isPastDue ? 'text-red-600' : 'text-green-600'} w-4/12">
+                        ${dateString}
+                        ${isPastDue ? '<p class="text-xs font-medium text-red-500">(Past Due! You may need to adjust your end date or stretch the schedule.)</p>' : ''}
+                    </td>
                 `;
+                container.appendChild(row);
             });
 
-            container.innerHTML = html;
-            
-            // 4. Update Header and Message
-            if (latestCalculatedStartDate) {
-                 calculatedStartDateEl.textContent = formatDate(latestCalculatedStartDate);
-                 document.getElementById('print-info-start-date').textContent = formatDate(latestCalculatedStartDate);
-            }
-            
-            if (scheduleIsStretched) {
-                stretchMessage.textContent = `⚠️ Warning: The ideal start date was in the past. The schedule has been dynamically stretched from today (${formatDate(latestCalculatedStartDate)}) to meet your desired end date. **Time is apportioned proportionally to the Weeks required for each task.**`;
-                stretchMessage.classList.remove('hidden');
-                document.getElementById('print-info-stretched').textContent = 'YES (Schedule stretched due to past ideal start date)';
-            } else {
-                document.getElementById('print-info-stretched').textContent = 'NO';
+            if (calculatedSchedule.length === 0) {
+                container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">No data available to calculate timetable.</td></tr>';
             }
         }
 
 
-        // --- Initialization ---
-
-        function initFirebaseAndAuth() {
-            setLogLevel('debug'); // Enable detailed Firebase logging
-            
-            if (firebaseConfig.apiKey === "DUMMY_API_KEY") {
-                console.warn("Using DUMMY Firebase configuration. Data will not be saved or loaded.");
-                showMessage("Running with DUMMY config. Data saving/loading is disabled.", true);
-                isSavingEnabled = false;
-                userId = crypto.randomUUID(); 
-                document.getElementById('display-user-id').textContent = userId + ' (Local/Dummy)';
-                renderTimetable(UNIT_ASSESSMENT_DATA); 
-                
-                // Proceed to attach event listeners even without full Firebase
-                attachEventListeners();
-                return;
-            }
-            
-            // If configuration is valid (not dummy), proceed with Firebase init
-            isSavingEnabled = true;
-
+        // --- Initialization Function ---
+        async function initApp() {
+            // Attempt to initialize Firebase
             try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                const signInProcedure = async () => {
-                    if (initialAuthToken) {
-                        return signInWithCustomToken(auth, initialAuthToken)
-                            .catch(error => {
-                                console.error("Custom token sign-in failed. Falling back to anonymous.", error);
-                                return signInAnonymously(auth);
-                            });
-                    } else {
-                        return signInAnonymously(auth).catch(error => {
-                            console.error("Anonymous sign-in failed.", error);
-                        });
-                    }
-                };
+                if (!db) {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    // setLogLevel('debug'); // Enable for deep debugging
 
-                // Auth state listener: runs when auth state changes (sign-in/out)
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        console.log("Authenticated with userId:", userId);
-                        document.getElementById('display-user-id').textContent = userId;
-                        // Once authenticated, load data
-                        loadStudentDetails();
-                    } else {
-                        userId = null;
-                        console.log("No user signed in. Waiting for sign-in.");
-                        userId = crypto.randomUUID(); 
-                        document.getElementById('display-user-id').textContent = userId + ' (Anonymous)';
-                        renderTimetable(UNIT_ASSESSMENT_DATA); 
-                    }
-                });
-                
-                // Execute sign-in attempt
-                signInProcedure();
-                
-                // Attach event listeners
-                attachEventListeners();
+                    // Set persistence to local to keep the session
+                    await setPersistence(auth, browserLocalPersistence);
 
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                showMessage("Firebase setup error. Check console.", true);
-                renderTimetable(UNIT_ASSESSMENT_DATA); 
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            document.getElementById('display-user-id').textContent = userId;
+                            console.log("Firebase Auth State Changed: User signed in.", userId);
+                            await loadStudentDetails();
+                        } else {
+                            // Sign in anonymously if no user is found
+                            if (initialAuthToken) {
+                                // Use custom token if available (Canvas environment)
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                // Sign in anonymously otherwise (local testing)
+                                const anonymousUser = await signInAnonymously(auth);
+                                userId = anonymousUser.user.uid;
+                                document.getElementById('display-user-id').textContent = userId;
+                                console.log("Firebase Auth State Changed: Signed in anonymously.", userId);
+                                await loadStudentDetails();
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                isSavingEnabled = false;
+                console.error("Firebase initialization failed. Running in read-only/no-save mode.", e);
+                document.getElementById('display-user-id').textContent = 'N/A (No Save)';
+                showMessage("Saving/Loading is disabled: Firebase connection failed.", true);
+                
+                // Since auth failed, we immediately render the default timetable
+                renderTimetable(UNIT_ASSESSMENT_DATA);
             }
         }
-        
-        function attachEventListeners() {
+
+        // Attach event listeners and start initialization
+        window.addEventListener('load', () => {
+            // Attach form submission handler
             const form = document.getElementById('student-details-form');
             if (form) {
                 form.addEventListener('submit', handleSaveDetails);
-            } else {
-                console.error("Form element 'student-details-form' not found.");
             }
             
-            const printBtn = document.getElementById('print-button');
-            if (printBtn) {
-                printBtn.addEventListener('click', handlePrint);
-            } else {
-                console.error("Print button 'print-button' not found.");
+            // Attach print button handler
+            const printButton = document.getElementById('print-button');
+            if (printButton) {
+                printButton.addEventListener('click', handlePrint);
             }
-        }
 
-        // Start the application flow on window load
-        window.onload = initFirebaseAndAuth;
-
+            // Start Firebase setup and data loading
+            initApp();
+        });
     </script>
 </head>
-<body class="bg-dapa-background p-4 sm:p-8">
-
-    <!-- Message Box for feedback (instead of alerts) -->
+<body class="bg-dapa-background p-4 min-h-screen">
     <div id="message-box"></div>
+    <div class="timetable-container space-y-6">
 
-    <div class="timetable-container">
-        
-        <!-- Header Section (Hidden during Print) -->
-        <div class="header-section mb-6">
-            <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 DAPA Assessment Timetable</h1>
+        <!-- Header Section -->
+        <header class="header-section">
+            <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 Dental Assisting Timetable</h1>
+            <p class="text-gray-600 mb-4">Backward Scheduling Calculator</p>
             
-            <!-- DATE DISPLAY BLOCK (LABELS SWAPPED) -->
-            <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700 font-semibold mb-3">
-                <p>Calculated Start Date: <span id="display-start-date" class="text-green-600 font-extrabold">N/A</span></p>
-                <p>Desired Course End Date: <span id="display-end-date" class="text-red-500 font-extrabold">N/A</span></p>
+            <!-- Student/Date Input Form -->
+            <form id="student-details-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div class="md:col-span-2">
+                    <label for="student-name" class="block text-sm font-medium text-gray-700">Student Name</label>
+                    <input type="text" id="student-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border" placeholder="Enter Name (Optional)">
+                </div>
+                <div>
+                    <label for="student-number" class="block text-sm font-medium text-gray-700">Student Number</label>
+                    <input type="text" id="student-number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border" placeholder="Enter Number (Optional)">
+                </div>
+                <div>
+                    <label for="course-end-date" class="block text-sm font-medium text-gray-700">TPP End Date</label>
+                    <input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border">
+                </div>
+                <button type="submit" class="md:col-start-4 w-full bg-dapa-primary text-white py-2 px-4 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md">
+                    Calculate Timetable
+                </button>
+            </form>
+        </header>
+
+        <!-- Display Calculated Dates and Warnings -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Start Date</p>
+                <p id="display-start-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
-            <!-- END DATE DISPLAY BLOCK -->
-
-            <p class="text-gray-600 mb-2">Review your estimated submission schedule below, calculated backwards from your desired end date.</p>
-            
-            <!-- Dynamic Stretch Message -->
-            <p id="stretch-message" class="text-sm text-yellow-800 italic border-l-4 border-yellow-500 pl-3 py-1 bg-yellow-100 rounded-md hidden mb-2">
-                <!-- Content inserted by JS if stretching is applied -->
-            </p>
-            
-            <p class="text-sm text-gray-500 italic border-l-4 border-gray-300 pl-3 py-1 bg-white rounded-md">
-                Submission dates automatically adjust to the **previous** business day if they fall on a weekend or a public holiday.
-            </p>
-
-            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mt-4">
-                <!-- Student Details Form -->
-                <form id="student-details-form" class="w-full grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="md:col-span-1">
-                        <label for="student-name" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Name</label>
-                        <input type="text" id="student-name" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="Jane Doe">
-                    </div>
-                    <div class="md:col-span-1">
-                        <label for="student-number" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Number</label>
-                        <input type="text" id="student-number" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="S1234567">
-                    </div>
-                    <!-- INPUT CHANGED TO END DATE -->
-                    <div class="md:col-span-1">
-                        <label for="course-end-date" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Desired Course End Date</label>
-                        <input type="date" id="course-end-date" 
-                            class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition">
-                    </div>
-                    <!-- Buttons Container -->
-                    <div id="print-button-container" class="md:col-span-1 pt-2 flex space-x-2 items-end">
-                        <button type="submit" class="bg-dapa-primary text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-dapa-accent-hover transition duration-300 flex-1">
-                            Save & Calculate
-                        </button>
-                        <button type="button" id="print-button" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-gray-600 transition duration-300 flex-1">
-                            Print (PDF)
-                        </button>
-                    </div>
-                    <!-- END Buttons Container -->
-                </form>
-
+            <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">TPP End Date</p>
+                <p id="display-end-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
+            </div>
+            <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
+                <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Schedule Stretch Warning</p>
+                <p class="text-sm font-medium text-red-800 mt-1">The calculated start date is in the past. To meet your end date, you may need to complete tasks faster than recommended.</p>
             </div>
         </div>
-        
-        <!-- Print-Specific Header Info (Hidden on Screen) -->
-        <div id="print-info" class="hidden">
-            <h1 class="text-xl font-bold text-gray-800 mb-4">HLT35021 Assessment Timetable</h1>
-            <div class="grid grid-cols-2 gap-y-1 text-sm text-gray-600">
-                <p><span class="font-semibold text-dapa-primary">Student:</span> <span id="print-info-name">N/A</span></p>
-                <p><span class="font-semibold text-dapa-primary">Student ID:</span> <span id="print-info-number">N/A</span></p>
-                <p><span class="font-semibold text-dapa-primary">Calculated Start:</span> <span id="print-info-start-date">N/A</span></p>
-                <p><span class="font-semibold text-dapa-primary">Desired End:</span> <span id="display-end-date-print">N/A</span></p>
-                <p class="col-span-2"><span class="font-semibold text-dapa-primary">Schedule Stretched:</span> <span id="print-info-stretched">NO</span></p>
-            </div>
-            <hr class="mt-4 border-gray-300">
+
+        <!-- Print Info Block (Shown only on Print) -->
+        <div id="print-info">
+            <h2 class="text-xl font-bold text-gray-800 mb-1">Assessment Timetable for HLT35021</h2>
+            <p class="text-sm text-gray-600">Name: <span id="print-info-name" class="font-semibold">N/A</span> | Student #: <span id="print-info-number" class="font-semibold">N/A</span></p>
+            <p class="text-sm text-gray-600">Start Date: <span id="display-start-date-print" class="font-semibold">N/A</span> | TPP End Date: <span id="display-end-date-print" class="font-semibold">N/A</span></p>
         </div>
-        <!-- END Print-Specific Header Info -->
 
         <!-- Timetable Table -->
         <div class="shadow-xl rounded-lg overflow-hidden">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-dapa-primary text-white">
                     <tr>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-1/12">Unit Code</th>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-1/12">Assessment</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-6/12">Assessment Description</th>
-                        <!-- COLUMN NAME CHANGE to reflect reverse logic -->
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-6/12">Assessment Description / Duration</th>
                         <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-4/12">Latest Submission Date</th>
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
                     <!-- Timetable rows will be rendered here by JavaScript -->
                     <tr>
-                        <td colspan="4" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
+                        <td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex justify-center mt-6 no-print" id="print-button-container">
+            <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-2">
+                    <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v12.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15V2.5ZM15 5.5v2.5a.75.75 0 0 0 1.5 0V4a1 1 0 0 0-1-1h-1a1 1 0 0 0-1 1v1.5a.75.75 0 0 0 1.5 0V5.5ZM5 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V4.5Zm0 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-5Z" clip-rule="evenodd" />
+                </svg>
+                Print Timetable
+            </button>
         </div>
         
         <p class="text-center text-xs text-gray-400 mt-4 no-print">
