@@ -53,6 +53,59 @@
             right: 1rem;
             z-index: 50;
         }
+
+        /* --- Print Styles --- */
+        @media print {
+            body {
+                background-color: white !important; /* White background for print */
+                margin: 0;
+                padding: 0;
+            }
+            .timetable-container {
+                max-width: none; /* Use full width */
+                margin: 0;
+                padding: 1cm;
+            }
+            /* Hide elements not needed in the printed document */
+            .header-section, 
+            #student-details-form, 
+            #print-button-container, 
+            .no-print {
+                display: none !important;
+            }
+            /* Show the dedicated print info block */
+            #print-info {
+                display: block !important;
+                margin-bottom: 1.5rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 1px solid #ccc;
+            }
+            /* Ensure table structure is preserved */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th, td {
+                border: 1px solid #e5e7eb;
+                padding: 0.5rem;
+            }
+            /* Ensure colors print (if browser is set to print background graphics) */
+            .bg-dapa-primary {
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+                background-color: var(--dapa-primary) !important;
+                color: white !important;
+            }
+            .text-dapa-primary {
+                color: var(--dapa-primary) !important;
+            }
+            /* Remove hover effects */
+            .timetable-row:hover {
+                transform: none;
+                box-shadow: none;
+            }
+        }
+        /* --- End Print Styles --- */
     </style>
     <!-- Firebase Libraries -->
     <script type="module">
@@ -70,11 +123,11 @@
         let auth;
         let userId = null;
 
-        // Normalize Today's Date to midnight for clean comparison
+        // Normalize Today's Date to midday for clean comparison (to avoid timezone issues at midnight)
         const TODAY = (() => {
             const d = new Date();
-            // Set time to midnight for comparison purposes
-            d.setHours(0, 0, 0, 0); 
+            // Set time to noon for comparison purposes
+            d.setHours(12, 0, 0, 0); 
             return d;
         })();
 
@@ -104,8 +157,8 @@
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 1', AssessmentDescription: 'Communicate appropriately in a dental administrative setting', Weeks: '1 week' },
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
@@ -145,6 +198,7 @@
 
         // State variables (Note: 'startDate' key in Firestore holds the user's desired END date)
         let studentDetails = { name: '', number: '', startDate: '' }; 
+        let calculatedSchedule = []; // Stores the final, calculated timetable data
 
         // Utility to show temporary, custom messages (instead of alert())
         const showMessage = (message, isError = false) => {
@@ -200,7 +254,7 @@
          * @returns {Date} The previous valid working date.
          */
         function getPreviousValidDate(date) {
-            const validDate = new Date(date); // Work with a copy
+            const validDate = new Date(date.getTime()); // Work with a copy
 
             // Keep subtracting a day until it's a weekday and not a holiday
             while (isWeekend(validDate) || isHoliday(validDate)) {
@@ -215,7 +269,7 @@
          * @returns {Date} The next valid working date.
          */
         function getNextValidDate(date) {
-            const validDate = new Date(date); // Work with a copy
+            const validDate = new Date(date.getTime()); // Work with a copy
 
             // Keep adding a day until it's a weekday and not a holiday
             while (isWeekend(validDate) || isHoliday(validDate)) {
@@ -235,9 +289,14 @@
         function subtractWeeksFromDate(baseDate, weeksStr) {
             const days = getDaysFromWeeks(weeksStr);
             
+            // Start from the day *before* the submission date for the prior task
             const rawDate = new Date(baseDate.getTime());
+            rawDate.setDate(rawDate.getDate() - 1); // Go back one day
+            
+            // Subtract the required weeks (in days)
             rawDate.setDate(rawDate.getDate() - days);
             
+            // Find the nearest previous valid business day
             return getPreviousValidDate(rawDate);
         }
 
@@ -317,6 +376,13 @@
                 showMessage("Failed to save student details.", true);
             }
         }
+        
+        /**
+         * Trigger the browser's print dialog.
+         */
+        function handlePrint() {
+            window.print();
+        }
 
         // --- Rendering Function (REVERSE & STRETCH LOGIC) ---
 
@@ -325,19 +391,25 @@
             const calculatedStartDateEl = document.getElementById('display-start-date'); 
             const desiredEndDateEl = document.getElementById('display-end-date');
             const stretchMessage = document.getElementById('stretch-message');
+            const printInfoName = document.getElementById('print-info-name');
+            const printInfoNumber = document.getElementById('print-info-number');
 
             if (!container) return;
 
             const courseAnchorDateStr = studentDetails.startDate; // This is the END date now
             let latestCalculatedStartDate = null; 
             let adjustedCourseEndDate = null;
-            let calculatedTimetable = [];
             let scheduleIsStretched = false;
 
             // Reset header display and stretch message
             calculatedStartDateEl.textContent = 'N/A';
             desiredEndDateEl.textContent = 'N/A';
             stretchMessage.classList.add('hidden');
+            printInfoName.textContent = studentDetails.name || 'N/A';
+            printInfoNumber.textContent = studentDetails.number || 'N/A';
+            
+            // Clear previous schedule
+            calculatedSchedule = [];
 
             if (!courseAnchorDateStr) {
                 container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Please enter a Desired Course End Date and click "Save Details & Calculate Dates" to generate the schedule.</td></tr>';
@@ -360,6 +432,8 @@
             // --- SCENARIO 1: BACKWARD CALCULATION (Default) ---
             
             let tempTimetable = [];
+            
+            // The first assessment's submission date is the adjusted course end date
             let rollingDateBackward = adjustedCourseEndDate;
 
             // Iterate BACKWARDS through the assessment data
@@ -378,16 +452,15 @@
                     CalculatedDate: submissionDate
                 });
 
-                // Calculate the submission date for the *previous* assessment 
+                // Calculate the submission date for the * previous* assessment, starting from the day *before* the current submission date minus the duration
                 rollingDateBackward = subtractWeeksFromDate(submissionDate, item.Weeks);
             }
 
             tempTimetable.reverse();
-            calculatedTimetable = tempTimetable;
-
+            calculatedSchedule = tempTimetable; // Store the calculated schedule
 
             // 2. CHECK: If the calculated start date is in the past, switch to Dynamic Apportionment
-            // Check if the calculated ideal start date is BEFORE today's date (at midnight)
+            // Check if the calculated ideal start date is BEFORE today's date (at noon)
             if (latestCalculatedStartDate.getTime() < TODAY.getTime()) {
                 
                 // --- SCENARIO 2: STRETCHING REQUIRED (Proportional Apportionment) ---
@@ -400,45 +473,60 @@
                 
                 // b) Determine Available Calendar Days (simple difference from Today to End Date)
                 const msInDay = 24 * 60 * 60 * 1000;
+                
+                // Start from the next valid business day on or after today
+                const actualStartDate = getNextValidDate(TODAY);
+                
                 // We use adjustedCourseEndDate (already adjusted to a business day)
-                let timeDifferenceMs = adjustedCourseEndDate.getTime() - TODAY.getTime();
+                let timeDifferenceMs = adjustedCourseEndDate.getTime() - actualStartDate.getTime();
                 
                 // Only stretch if there is a meaningful duration of days between today and the end date
                 if (timeDifferenceMs > 0 && totalRequiredCalendarDays > 0) {
                     scheduleIsStretched = true;
-                    const totalAvailableCalendarDays = Math.ceil(timeDifferenceMs / msInDay); 
+                    // Total available time in days (plus 1 to include the last day)
+                    const totalAvailableCalendarDays = Math.floor(timeDifferenceMs / msInDay) + 1; 
 
                     // c) Calculate the Day Multiplier (Stretching factor)
                     let dayMultiplier = totalAvailableCalendarDays / totalRequiredCalendarDays;
                     
                     // d) Recalculate Forward
-                    // Start from the first valid business day on or after today
-                    let rollingDateForward = getNextValidDate(TODAY);
+                    // Start rolling date calculation from the actual calculated start date (today or next business day)
+                    let rollingDateForward = actualStartDate;
                     let stretchedTimetable = [];
+                    let totalDaysAdded = 0;
 
                     UNIT_ASSESSMENT_DATA.forEach((item, index) => {
                         const requiredDays = getDaysFromWeeks(item.Weeks);
                         let daysToAdd = 0;
-
+                        
                         // APPORTIONMENT: Apply multiplier proportionally to the required time
                         if (requiredDays > 0) {
-                            daysToAdd = Math.round(requiredDays * dayMultiplier);
+                            // Calculate days, rounding up
+                            daysToAdd = Math.ceil(requiredDays * dayMultiplier);
                         } 
                         
-                        // Add the calculated days to the rolling date
-                        const newDate = new Date(rollingDateForward.getTime());
-                        newDate.setDate(newDate.getDate() + daysToAdd);
+                        // Start calculating the new date from the day *after* the previous submission
+                        const currentTaskStartDate = new Date(rollingDateForward.getTime());
                         
-                        // The submission date is the calculated date, adjusted to the next valid business day
-                        let submissionDate = getNextValidDate(newDate);
+                        // If it's the very first task, the start date is the actual start date
+                        if (index !== 0) {
+                            currentTaskStartDate.setDate(currentTaskStartDate.getDate() + 1);
+                        }
+
+                        // Add the calculated stretched days to find the raw submission date
+                        const rawSubmissionDate = new Date(currentTaskStartDate.getTime());
+                        rawSubmissionDate.setDate(rawSubmissionDate.getDate() + daysToAdd);
+                        
+                        // Adjust the raw submission date to the previous valid business day
+                        let submissionDate = getPreviousValidDate(rawSubmissionDate);
                         
                         // If this is the final assessment, force it to the adjustedCourseEndDate
                         if (index === UNIT_ASSESSMENT_DATA.length - 1) {
                             submissionDate = adjustedCourseEndDate;
                         }
-                        
-                        // Set the start of the next calculation to the day *after* this submission date
-                        rollingDateForward = new Date(submissionDate.getTime() + msInDay); 
+
+                        // The next rolling start date is based on the submission date of the current task
+                        rollingDateForward = submissionDate; 
                         
                         stretchedTimetable.push({
                             ...item,
@@ -447,8 +535,8 @@
                     });
 
                     // Use the stretched timetable for rendering
-                    calculatedTimetable = stretchedTimetable;
-                    latestCalculatedStartDate = getNextValidDate(TODAY); // The new start date is the first valid day on or after today
+                    calculatedSchedule = stretchedTimetable;
+                    latestCalculatedStartDate = actualStartDate; // The new start date is the first valid day on or after today
 
                 }
             }
@@ -458,7 +546,7 @@
             let html = '';
             let currentUnitCode = null;
 
-            calculatedTimetable.forEach((item) => {
+            calculatedSchedule.forEach((item) => {
                 
                 const dateDisplay = formatDate(item.CalculatedDate);
 
@@ -496,11 +584,15 @@
             // 4. Update Header and Message
             if (latestCalculatedStartDate) {
                  calculatedStartDateEl.textContent = formatDate(latestCalculatedStartDate);
+                 document.getElementById('print-info-start-date').textContent = formatDate(latestCalculatedStartDate);
             }
             
             if (scheduleIsStretched) {
-                stretchMessage.textContent = `⚠️ Warning: The ideal start date was in the past. The schedule has been dynamically stretched from today (${formatDate(getNextValidDate(TODAY))}) to meet your desired end date. **Time is apportioned proportionally to the Weeks required for each task.**`;
+                stretchMessage.textContent = `⚠️ Warning: The ideal start date was in the past. The schedule has been dynamically stretched from today (${formatDate(latestCalculatedStartDate)}) to meet your desired end date. **Time is apportioned proportionally to the Weeks required for each task.**`;
                 stretchMessage.classList.remove('hidden');
+                document.getElementById('print-info-stretched').textContent = 'YES (Schedule stretched due to past ideal start date)';
+            } else {
+                document.getElementById('print-info-stretched').textContent = 'NO';
             }
         }
 
@@ -547,20 +639,31 @@
                     } else {
                         userId = null;
                         console.log("No user signed in. Waiting for sign-in.");
-                        document.getElementById('display-user-id').textContent = 'Anonymous/Not Signed In';
+                        // Generate a temporary unique ID for anonymous users if Firebase auth failed/is not ready
+                        userId = crypto.randomUUID(); 
+                        document.getElementById('display-user-id').textContent = userId + ' (Anonymous)';
                         renderTimetable(UNIT_ASSESSMENT_DATA); 
                     }
                 });
                 
+                // Execute sign-in attempt
                 signInProcedure();
                 
-                // Attach event listener for the form submission
+                // Attach event listeners
                 const form = document.getElementById('student-details-form');
                 if (form) {
                     form.addEventListener('submit', handleSaveDetails);
                 } else {
                     console.error("Form element 'student-details-form' not found.");
                 }
+                
+                const printBtn = document.getElementById('print-button');
+                if (printBtn) {
+                    printBtn.addEventListener('click', handlePrint);
+                } else {
+                    console.error("Print button 'print-button' not found.");
+                }
+
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
@@ -581,7 +684,7 @@
 
     <div class="timetable-container">
         
-        <!-- Header Section -->
+        <!-- Header Section (Hidden during Print) -->
         <div class="header-section mb-6">
             <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 DAPA Assessment Timetable</h1>
             
@@ -603,34 +706,52 @@
                 Submission dates automatically adjust to the **previous** business day if they fall on a weekend or a public holiday.
             </p>
 
-            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mt-4">
-                <!-- Student Details Form (now full width) -->
-                <form id="student-details-form" class="w-full grid grid-cols-1 sm:grid-cols-4 gap-4">
-                    <div class="sm:col-span-1">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mt-4">
+                <!-- Student Details Form -->
+                <form id="student-details-form" class="w-full grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="md:col-span-1">
                         <label for="student-name" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Name</label>
                         <input type="text" id="student-name" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="Jane Doe">
                     </div>
-                    <div class="sm:col-span-1">
+                    <div class="md:col-span-1">
                         <label for="student-number" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Number</label>
                         <input type="text" id="student-number" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="S1234567">
                     </div>
                     <!-- INPUT CHANGED TO END DATE -->
-                    <div class="sm:col-span-1">
+                    <div class="md:col-span-1">
                         <label for="course-end-date" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Desired Course End Date</label>
                         <input type="date" id="course-end-date" 
                             class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition">
                     </div>
-                    <!-- END INPUT CHANGE -->
-                    <div class="sm:col-span-1 pt-2 flex items-end">
-                         <button type="submit" class="bg-dapa-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-dapa-accent-hover transition duration-300 w-full">
-                            Save Details & Calculate Dates
+                    <!-- Buttons Container -->
+                    <div id="print-button-container" class="md:col-span-1 pt-2 flex space-x-2 items-end">
+                        <button type="submit" class="bg-dapa-primary text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-dapa-accent-hover transition duration-300 flex-1">
+                            Save & Calculate
+                        </button>
+                        <button type="button" id="print-button" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-gray-600 transition duration-300 flex-1">
+                            Print (PDF)
                         </button>
                     </div>
+                    <!-- END Buttons Container -->
                 </form>
 
             </div>
         </div>
         
+        <!-- Print-Specific Header Info (Hidden on Screen) -->
+        <div id="print-info" class="hidden">
+            <h1 class="text-xl font-bold text-gray-800 mb-4">HLT35021 Assessment Timetable</h1>
+            <div class="grid grid-cols-2 gap-y-1 text-sm text-gray-600">
+                <p><span class="font-semibold text-dapa-primary">Student:</span> <span id="print-info-name">N/A</span></p>
+                <p><span class="font-semibold text-dapa-primary">Student ID:</span> <span id="print-info-number">N/A</span></p>
+                <p><span class="font-semibold text-dapa-primary">Calculated Start:</span> <span id="print-info-start-date">N/A</span></p>
+                <p><span class="font-semibold text-dapa-primary">Desired End:</span> <span id="display-end-date-print">N/A</span></p>
+                <p class="col-span-2"><span class="font-semibold text-dapa-primary">Schedule Stretched:</span> <span id="print-info-stretched">NO</span></p>
+            </div>
+            <hr class="mt-4 border-gray-300">
+        </div>
+        <!-- END Print-Specific Header Info -->
+
         <!-- Timetable Table -->
         <div class="shadow-xl rounded-lg overflow-hidden">
             <table class="min-w-full divide-y divide-gray-200">
@@ -652,7 +773,7 @@
             </table>
         </div>
         
-        <p class="text-center text-xs text-gray-400 mt-4">
+        <p class="text-center text-xs text-gray-400 mt-4 no-print">
             User ID: <span id="display-user-id">Loading...</span>
         </p>
 
