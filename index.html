@@ -74,6 +74,7 @@
         let db;
         let auth;
         let userId = 'anon'; // Default user ID
+
         const studentDetailsKey = 'student_details';
 
         // Global Firestore variables
@@ -132,8 +133,8 @@
          * @returns {string} The document path.
          */
         function getStudentDetailsDocPath() {
-            // FIX: Path must be Collection/Document/Collection/Document/Collection/Document (6 segments)
-            return `artifacts/${appId}/users/${userId}/data/${studentDetailsKey}`;
+            // Path must be Collection/Document/Collection/Document (4 segments)
+            return `artifacts/${appId}/users/${userId}/${studentDetailsKey}`;
         }
 
         /**
@@ -280,9 +281,10 @@
             window.courseUnits = []; // Reset global data
             
             try {
+                // CHANGED: Using the requested UPPERCASE filename for fetch
                 const response = await fetch('TIMETABLE_DATA.csv');
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} (${response.statusText}) - Could not find or access the CSV file.`);
+                    throw new Error(`HTTP error! status: ${response.status} (${response.statusText}) - Could not find or access the CSV file. Please check the filename case (must be TIMETABLE_DATA.csv).`);
                 }
                 const csvText = await response.text();
                 // Filter out empty lines, whitespace-only lines, and comment lines
