@@ -116,6 +116,31 @@
             // Safer parsing of the config string
             const configString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
             firebaseConfig = JSON.parse(configString);
+if (Object.keys(firebaseConfig).length === 0) {
+            // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M",
+  authDomain: "dapa-firestore.firebaseapp.com",
+  projectId: "dapa-firestore",
+  storageBucket: "dapa-firestore.firebasestorage.app",
+  messagingSenderId: "718243284686",
+  appId: "1:718243284686:web:4345e933c66d888506b29f",
+  measurementId: "G-C942FWNP8W"
+};
+}
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+            
         } catch(e) {
             console.error("Error parsing __firebase_config:", e);
         }
