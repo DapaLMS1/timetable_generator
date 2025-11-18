@@ -70,8 +70,17 @@
         let auth;
         let userId = null;
 
+        // Normalize Today's Date to midnight for clean comparison
+        const TODAY = (() => {
+            const d = new Date();
+            // Set time to the end of the day yesterday (23:59:59), then reset to midnight.
+            // This ensures that "today" (Tues 18th) is treated as a valid day to start work.
+            d.setDate(d.getDate());
+            d.setHours(0, 0, 0, 0); 
+            return d;
+        })();
+
         // --- Data Source for Assessments ---
-        // This array holds the static timetable structure.
         const UNIT_ASSESSMENT_DATA = [
             { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction (Mandatory)', Weeks: '0 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 1', AssessmentDescription: 'The Dental Health Team', Weeks: '1 week' },
@@ -89,38 +98,35 @@
             
             // --- HLTINF002 ---
             { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 5', AssessmentDescription: 'Drying, Inspection, and Packaging', Weeks: '1 week' },
-            { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 6', AssessmentDescription: 'Operating the Steriliser (Autoclave)', Weeks: '0 week' },
+            { UnitCode: 'HLTINF002', UnitCode: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 6', AssessmentDescription: 'Operating the Steriliser (Autoclave)', Weeks: '0 week' },
             // --- END HLTINF002 ---
             
-            // HLTDEN010, HLTDEN011, HLTDEN012, HLTDEN013, HLTDEN014 REMOVED as per user request.
-
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 1', AssessmentDescription: 'Foundational Clinic & Communication', Weeks: '5 weeks' },
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN016', UnitCode: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 1', AssessmentDescription: 'Communicate appropriately in a dental administrative setting', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 3', AssessmentDescription: 'Process and reconcile patient accounts', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 4', AssessmentDescription: 'Maintain patient records', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with patient recalls', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with administration in dental practice', AssessmentName: 'Task 3', AssessmentDescription: 'Process and reconcile patient accounts', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with administration in dental practice', AssessmentName: 'Task 4', AssessmentDescription: 'Maintain patient records', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN017', UnitCode: 'Assist with patient recalls', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
             { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitCode: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitCode: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
             // Corrected AssessmentName/AssessmentDescription mapping
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentDescription: 'Reflective journal', Weeks: '1 week' },
             
             // HLTAID011 MOVED TO END
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
-            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
+            { UnitCode: 'HLTAID011', UnitCode: 'Provide First Aid', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
         ];
 
         // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
-        // Submission dates will be moved to the next business day if they fall on one of these dates.
         const PUBLIC_HOLIDAYS = [
             "2026-01-01", // New Year's Day
             "2026-01-26", // Australia Day
@@ -138,7 +144,7 @@
         // Firestore path helper for student details
         const getStudentDetailsDocRef = (uid) => doc(db, 'artifacts', appId, 'users', uid, 'studentDetails', 'info');
 
-        // State variables
+        // State variables (Note: 'startDate' key in Firestore holds the user's desired END date)
         let studentDetails = { name: '', number: '', startDate: '' }; 
 
         // Utility to show temporary, custom messages (instead of alert())
@@ -149,11 +155,22 @@
                     ${message}
                 </div>
             `;
-            setTimeout(() => { box.innerHTML = ''; }, 3000);
+            setTimeout(() => { box.innerHTML = ''; }, 5000);
         };
 
-        // --- Date Calculation Helper ---
+        // --- Date Calculation Helper (REVERSED & DYNAMIC LOGIC) ---
 
+        /**
+         * Converts a "X week(s)" string into an integer number of days.
+         * @param {string} weeksStr - The duration string (e.g., "1 week", "2 weeks", "0 week").
+         * @returns {number} The duration in days.
+         */
+        function getDaysFromWeeks(weeksStr) {
+            const match = weeksStr.match(/(\d+)/);
+            const weeks = match ? parseInt(match[1], 10) : 0;
+            return weeks * 7;
+        }
+        
         /**
          * Checks if a date falls on a weekend (Saturday or Sunday).
          * @param {Date} date - The Date object to check.
@@ -166,12 +183,10 @@
 
         /**
          * Checks if a date falls on a representative public holiday.
-         * Note: This list is fixed and representative for demonstration purposes.
          * @param {Date} date - The Date object to check.
          * @returns {boolean} True if it's a holiday, false otherwise.
          */
         function isHoliday(date) {
-            // Format the date as YYYY-MM-DD for comparison
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
@@ -181,8 +196,22 @@
         }
 
         /**
+         * Finds the previous valid working day (Monday to Friday, non-holiday).
+         * @param {Date} date - The calculated date.
+         * @returns {Date} The previous valid working date.
+         */
+        function getPreviousValidDate(date) {
+            const validDate = new Date(date); // Work with a copy
+
+            // Keep subtracting a day until it's a weekday and not a holiday
+            while (isWeekend(validDate) || isHoliday(validDate)) {
+                validDate.setDate(validDate.getDate() - 1);
+            }
+            return validDate;
+        }
+        
+        /**
          * Finds the next valid working day (Monday to Friday, non-holiday).
-         * Advances the date if it falls on a weekend or a representative public holiday.
          * @param {Date} date - The calculated date.
          * @returns {Date} The next valid working date.
          */
@@ -191,7 +220,6 @@
 
             // Keep adding a day until it's a weekday and not a holiday
             while (isWeekend(validDate) || isHoliday(validDate)) {
-                // Add one day to the current date
                 validDate.setDate(validDate.getDate() + 1);
             }
             return validDate;
@@ -199,25 +227,19 @@
 
 
         /**
-         * Adds a specified number of weeks to a base Date object, then adjusts the date 
-         * to the next available weekday (not a weekend or holiday).
-         * @param {Date} baseDate - The Date object to start from.
-         * @param {string} weeksStr - The duration string (e.g., "1 week", "2 weeks", "0 week").
-         * @returns {Date} The new Date object after adding the weeks and adjustment.
+         * Subtracts a specified number of weeks (converted to days) from a base Date object, 
+         * then adjusts the date to the previous available weekday. Used for backward scheduling.
+         * @param {Date} baseDate - The Date object to start from (the next submission date).
+         * @param {string} weeksStr - The duration string.
+         * @returns {Date} The new Date object after subtracting the time and adjustment.
          */
-        function addWeeksToDate(baseDate, weeksStr) {
-            // Parse weeks from string (e.g., "1 week", "2 weeks", "0 week")
-            const match = weeksStr.match(/(\d+)/);
-            const weeks = match ? parseInt(match[1], 10) : 0;
-
-            // Calculate milliseconds for N weeks: weeks * 7 days/week * ...
-            const msInWeek = 7 * 24 * 60 * 60 * 1000;
+        function subtractWeeksFromDate(baseDate, weeksStr) {
+            const days = getDaysFromWeeks(weeksStr);
             
-            // Create a new Date object and add weeks (raw calculation)
-            const rawDate = new Date(baseDate.getTime() + (weeks * msInWeek));
+            const rawDate = new Date(baseDate.getTime());
+            rawDate.setDate(rawDate.getDate() - days);
             
-            // Adjust the date to the next valid working day
-            return getNextValidDate(rawDate);
+            return getPreviousValidDate(rawDate);
         }
 
         /**
@@ -234,7 +256,6 @@
         
         // --- Firebase Functions ---
         
-        // Load student details and render the timetable
         async function loadStudentDetails() {
             if (!userId || !db) return;
 
@@ -243,33 +264,29 @@
                 if (docSnap.exists()) {
                     studentDetails = docSnap.data();
                     
-                    const startDateInput = document.getElementById('course-start-date');
+                    const endDateInput = document.getElementById('course-end-date');
                     
-                    // Update form fields with loaded data
                     document.getElementById('student-name').value = studentDetails.name || '';
                     document.getElementById('student-number').value = studentDetails.number || '';
                     
-                    // Set the full YYYY-MM-DD value needed by type="date"
                     if (studentDetails.startDate) {
-                        startDateInput.value = studentDetails.startDate; 
+                        endDateInput.value = studentDetails.startDate; 
                     } else {
-                        startDateInput.value = '';
+                        endDateInput.value = '';
                     }
                     
                 } else {
                     console.log("No student details found. Using defaults/empty.");
                 }
-                // Always render the timetable after trying to load details
                 renderTimetable(UNIT_ASSESSMENT_DATA); 
 
             } catch (e) {
                 console.error("Error loading student details:", e);
                 showMessage("Failed to load student details.", true);
-                renderTimetable(UNIT_ASSESSMENT_DATA); // Render default table on error
+                renderTimetable(UNIT_ASSESSMENT_DATA); 
             }
         }
 
-        // Save student details (Name, Number, Start Date) to Firestore
         async function handleSaveDetails(e) {
             e.preventDefault();
             if (!userId || !db) { 
@@ -277,26 +294,22 @@
                 return;
             }
             
-            // --- Start Date Handling Update ---
-            // The input will be in YYYY-MM-DD format (native date input behavior)
-            const startDateInput = document.getElementById('course-start-date').value.trim();
+            const courseAnchorDate = document.getElementById('course-end-date').value.trim();
             
-            if (!startDateInput) {
-                showMessage("Please select a Course Start Date.", true);
+            if (!courseAnchorDate) {
+                showMessage("Please select a Desired Course End Date.", true);
                 return;
             }
-            // --- End Update ---
 
             const newDetails = {
                 name: document.getElementById('student-name').value.trim(),
                 number: document.getElementById('student-number').value.trim(),
-                startDate: startDateInput, // Save the YYYY-MM-DD value directly
+                startDate: courseAnchorDate, // Store the anchor date (End Date) in the 'startDate' field
             };
             
             try {
                 await setDoc(getStudentDetailsDocRef(userId), newDetails, { merge: true });
                 studentDetails = newDetails;
-                // Re-render immediately to update calculated dates
                 renderTimetable(UNIT_ASSESSMENT_DATA);
                 showMessage("Student details saved successfully!");
             } catch (e) {
@@ -305,52 +318,155 @@
             }
         }
 
-        // --- Rendering Function ---
+        // --- Rendering Function (REVERSE & STRETCH LOGIC) ---
 
         function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
+            const calculatedStartDateEl = document.getElementById('display-start-date'); 
+            const desiredEndDateEl = document.getElementById('display-end-date');
+            const stretchMessage = document.getElementById('stretch-message');
+
             if (!container) return;
 
+            const courseAnchorDateStr = studentDetails.startDate; // This is the END date now
+            let latestCalculatedStartDate = null; 
+            let adjustedCourseEndDate = null;
+            let calculatedTimetable = [];
+            let scheduleIsStretched = false;
+
+            // Reset header display and stretch message
+            calculatedStartDateEl.textContent = 'N/A';
+            desiredEndDateEl.textContent = 'N/A';
+            stretchMessage.classList.add('hidden');
+
+            if (!courseAnchorDateStr) {
+                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Please enter a Desired Course End Date and click "Save Details & Calculate Dates" to generate the schedule.</td></tr>';
+                return;
+            }
+            
+            // 1. Initialize End Date and adjust it to the previous valid business day
+            let currentSubmissionDate = new Date(courseAnchorDateStr);
+            currentSubmissionDate.setHours(12, 0, 0, 0); 
+            
+            if (isNaN(currentSubmissionDate.getTime())) {
+                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Invalid Course End Date. Please correct the date input.</td></tr>';
+                return;
+            }
+
+            // The final assessment must be submitted on or before the adjusted end date
+            adjustedCourseEndDate = getPreviousValidDate(currentSubmissionDate);
+            desiredEndDateEl.textContent = formatDate(adjustedCourseEndDate);
+
+            // --- SCENARIO 1: BACKWARD CALCULATION (Default) ---
+            
+            let tempTimetable = [];
+            let rollingDateBackward = adjustedCourseEndDate;
+
+            // Iterate BACKWARDS through the assessment data
+            for (let i = data.length - 1; i >= 0; i--) {
+                const item = data[i];
+
+                // The calculated submission date for assessment 'i'
+                const submissionDate = rollingDateBackward;
+                
+                if (i === 0) {
+                    latestCalculatedStartDate = submissionDate; 
+                }
+
+                tempTimetable.push({
+                    ...item,
+                    CalculatedDate: submissionDate
+                });
+
+                // Calculate the submission date for the *previous* assessment 
+                rollingDateBackward = subtractWeeksFromDate(submissionDate, item.Weeks);
+            }
+
+            tempTimetable.reverse();
+            calculatedTimetable = tempTimetable;
+
+
+            // 2. CHECK: If the calculated start date is in the past, switch to Dynamic Apportionment
+            // Check if the calculated ideal start date is BEFORE today's date (at midnight)
+            if (latestCalculatedStartDate.getTime() < TODAY.getTime()) {
+                
+                // --- SCENARIO 2: STRETCHING REQUIRED (Proportional Apportionment) ---
+                
+                // a) Calculate Total Required Effort (in calendar days, based on 'Weeks' field)
+                let totalRequiredCalendarDays = 0;
+                UNIT_ASSESSMENT_DATA.forEach(item => {
+                    totalRequiredCalendarDays += getDaysFromWeeks(item.Weeks); 
+                });
+                
+                // b) Determine Available Calendar Days (simple difference from Today to End Date)
+                const msInDay = 24 * 60 * 60 * 1000;
+                // We use adjustedCourseEndDate (already adjusted to a business day)
+                let timeDifferenceMs = adjustedCourseEndDate.getTime() - TODAY.getTime();
+                
+                // Only stretch if there is a meaningful duration of days between today and the end date
+                if (timeDifferenceMs > 0 && totalRequiredCalendarDays > 0) {
+                    scheduleIsStretched = true;
+                    const totalAvailableCalendarDays = Math.ceil(timeDifferenceMs / msInDay); 
+
+                    // c) Calculate the Day Multiplier (Stretching factor)
+                    let dayMultiplier = totalAvailableCalendarDays / totalRequiredCalendarDays;
+                    
+                    // d) Recalculate Forward
+                    // Start from the first valid business day on or after today
+                    let rollingDateForward = getNextValidDate(TODAY);
+                    let stretchedTimetable = [];
+
+                    UNIT_ASSESSMENT_DATA.forEach((item, index) => {
+                        const requiredDays = getDaysFromWeeks(item.Weeks);
+                        let daysToAdd = 0;
+
+                        // APPORTIONMENT: Apply multiplier proportionally to the required time
+                        if (requiredDays > 0) {
+                            daysToAdd = Math.round(requiredDays * dayMultiplier);
+                        } 
+                        
+                        // Add the calculated days to the rolling date
+                        const newDate = new Date(rollingDateForward.getTime());
+                        newDate.setDate(newDate.getDate() + daysToAdd);
+                        
+                        // The submission date is the calculated date, adjusted to the next valid business day
+                        let submissionDate = getNextValidDate(newDate);
+                        
+                        // If this is the final assessment, force it to the adjustedCourseEndDate
+                        if (index === UNIT_ASSESSMENT_DATA.length - 1) {
+                            submissionDate = adjustedCourseEndDate;
+                        }
+                        
+                        // Set the start of the next calculation to the day *after* this submission date
+                        rollingDateForward = new Date(submissionDate.getTime() + msInDay); 
+                        
+                        stretchedTimetable.push({
+                            ...item,
+                            CalculatedDate: submissionDate
+                        });
+                    });
+
+                    // Use the stretched timetable for rendering
+                    calculatedTimetable = stretchedTimetable;
+                    latestCalculatedStartDate = getNextValidDate(TODAY); // The new start date is the first valid day on or after today
+
+                }
+            }
+
+
+            // 3. Render the final HTML table
             let html = '';
             let currentUnitCode = null;
-            const startDateStr = studentDetails.startDate; // Get the start date string (YYYY-MM-DD)
 
-            // Guard clause for missing start date
-            if (!startDateStr) {
-                // Changed colspan to 4
-                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Please enter a Course Start Date and click "Save Details & Calculate Dates" to generate the cumulative schedule.</td></tr>';
-                return;
-            }
-            
-            // Initialize the rolling completion date (start date)
-            let currentCompletionDate = new Date(startDateStr);
-            // Fix for timezone offset issue: setting the time to noon on the start date
-            currentCompletionDate.setHours(12, 0, 0, 0); 
-            
-            if (isNaN(currentCompletionDate.getTime())) {
-                // Changed colspan to 4
-                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Invalid Course Start Date. Please correct the date input.</td></tr>';
-                return;
-            }
-
-            // Adjust the start date itself if it's a weekend/holiday
-            currentCompletionDate = getNextValidDate(currentCompletionDate);
-
-            data.forEach((item) => {
+            calculatedTimetable.forEach((item) => {
                 
-                // 1. Calculate the *next* cumulative completion date by adding the current item's weeks.
-                // The addWeeksToDate function now handles the weekend/holiday adjustment internally.
-                currentCompletionDate = addWeeksToDate(currentCompletionDate, item.Weeks);
-                
-                // 2. Format the date display. All non-error dates are consistently bold.
-                const dateDisplay = formatDate(currentCompletionDate);
+                const dateDisplay = formatDate(item.CalculatedDate);
 
                 // Start of a new unit group header row
                 if (item.UnitCode !== currentUnitCode) {
                     currentUnitCode = item.UnitCode;
                     html += `
                         <tr class="bg-gray-100 font-bold text-dapa-primary">
-                            <!-- colspan changed from 5 to 4 -->
                             <td colspan="4" class="px-4 py-2 border-t-4 border-dapa-primary">
                                 ${item.UnitCode === 'INTRO' ? item.UnitDescription : item.UnitCode + ' - ' + item.UnitDescription}
                             </td>
@@ -365,10 +481,10 @@
                         <td class="px-4 py-3 text-sm font-medium text-gray-900 w-1/12">${item.UnitCode === 'INTRO' ? '' : item.UnitCode}</td>
                         <!-- Assessment (w-1/12) -->
                         <td class="px-4 py-3 text-sm text-gray-700 w-1/12">${item.AssessmentName}</td>
-                        <!-- Assessment Description (w-4/12 + w-3/12 = w-7/12) -->
-                        <td class="px-4 py-3 text-sm text-gray-700 max-w-md w-7/12">${item.AssessmentDescription}</td>
-                        <!-- Submission Date (w-3/12) -->
-                        <td class="px-4 py-3 text-center text-sm text-dapa-primary font-bold w-3/12">
+                        <!-- Assessment Description (w-6/12 - Adjusted width) -->
+                        <td class="px-4 py-3 text-sm text-gray-700 max-w-md w-6/12">${item.AssessmentDescription}</td>
+                        <!-- Latest Submission Date (w-4/12 - Adjusted width) -->
+                        <td class="px-4 py-3 text-center text-sm text-dapa-primary font-bold w-4/12">
                             ${dateDisplay}
                         </td>
                     </tr>
@@ -376,6 +492,16 @@
             });
 
             container.innerHTML = html;
+            
+            // 4. Update Header and Message
+            if (latestCalculatedStartDate) {
+                 calculatedStartDateEl.textContent = formatDate(latestCalculatedStartDate);
+            }
+            
+            if (scheduleIsStretched) {
+                stretchMessage.textContent = `⚠️ Warning: The ideal start date was in the past. The schedule has been dynamically stretched from today (${formatDate(getNextValidDate(TODAY))}) to meet your desired end date. **Time is apportioned proportionally to the Weeks required for each task.**`;
+                stretchMessage.classList.remove('hidden');
+            }
         }
 
 
@@ -463,11 +589,23 @@
         <!-- Header Section -->
         <div class="header-section mb-6">
             <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 Dental Assisting Timetable</h1>
-            <!-- Updated description text -->
-            <p class="text-gray-600 mb-2">Review your estimated submission schedule below based on your course start date.</p>
-            <p class="text-sm text-gray-500 italic border-l-4 border-yellow-500 pl-3 py-1 bg-yellow-50 rounded-md">
-                Submission dates automatically adjust to the next business day if they fall on a weekend or a public holiday. 
-                (The public holiday list is a fixed, representative sample for demonstration purposes).
+            
+            <!-- DATE DISPLAY BLOCK (LABELS SWAPPED) -->
+            <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-700 font-semibold mb-3">
+                <p>Calculated Start Date: <span id="display-start-date" class="text-green-600 font-extrabold">N/A</span></p>
+                <p>Desired Course End Date: <span id="display-end-date" class="text-red-500 font-extrabold">N/A</span></p>
+            </div>
+            <!-- END DATE DISPLAY BLOCK -->
+
+            <p class="text-gray-600 mb-2">Review your estimated submission schedule below, calculated backwards from your desired end date.</p>
+            
+            <!-- Dynamic Stretch Message -->
+            <p id="stretch-message" class="text-sm text-yellow-800 italic border-l-4 border-yellow-500 pl-3 py-1 bg-yellow-100 rounded-md hidden mb-2">
+                <!-- Content inserted by JS if stretching is applied -->
+            </p>
+            
+            <p class="text-sm text-gray-500 italic border-l-4 border-gray-300 pl-3 py-1 bg-white rounded-md">
+                Submission dates automatically adjust to the **previous** business day if they fall on a weekend or a public holiday.
             </p>
 
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mt-4">
@@ -481,15 +619,14 @@
                         <label for="student-number" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Number</label>
                         <input type="text" id="student-number" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="S1234567">
                     </div>
-                    <!-- START: Reverted input to type="date" for full date selection -->
+                    <!-- INPUT CHANGED TO END DATE -->
                     <div class="sm:col-span-1">
-                        <label for="course-start-date" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Course Start Date</label>
-                        <input type="date" id="course-start-date" 
+                        <label for="course-end-date" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Desired Course End Date</label>
+                        <input type="date" id="course-end-date" 
                             class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition">
                     </div>
-                    <!-- END: Reverted input -->
+                    <!-- END INPUT CHANGE -->
                     <div class="sm:col-span-1 pt-2 flex items-end">
-                         <!-- Removed onclick attribute and will handle submission via event listener on the form element -->
                          <button type="submit" class="bg-dapa-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-dapa-accent-hover transition duration-300 w-full">
                             Save Details & Calculate Dates
                         </button>
@@ -505,16 +642,14 @@
                 <thead class="bg-dapa-primary text-white">
                     <tr>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-1/12">Unit Code</th>
-                        <!-- Unit Description column REMOVED -->
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-1/12">Assessment</th>
-                        <!-- Width adjusted from w-4/12 to w-7/12 -->
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-7/12">Assessment Description</th>
-                        <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-3/12">Submission Date</th>
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-6/12">Assessment Description</th>
+                        <!-- COLUMN NAME CHANGE to reflect reverse logic -->
+                        <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-4/12">Latest Submission Date</th>
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
                     <!-- Timetable rows will be rendered here by JavaScript -->
-                    <!-- Updated colspan for loading row -->
                     <tr>
                         <td colspan="4" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
                     </tr>
