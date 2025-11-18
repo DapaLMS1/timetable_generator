@@ -106,11 +106,20 @@
     <script type="module">
         import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        
+        let firebaseConfig = {};
+        try {
+            // Safer parsing of the config string
+            const configString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+            firebaseConfig = JSON.parse(configString);
+        } catch(e) {
+            console.error("Error parsing __firebase_config:", e);
+        }
+        
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         let db, auth;
@@ -136,7 +145,10 @@
                     </td>
                 </tr>
             `;
-            document.getElementById('auth-status').textContent = "❌ Initialization Failed";
+            // Do not overwrite auth-status if it already indicates config missing
+            if (document.getElementById('auth-status').textContent.indexOf('Missing') === -1) {
+                document.getElementById('auth-status').textContent = "❌ Initialization Failed";
+            }
             console.error("UI Error Message Displayed:", message);
         }
 
@@ -173,10 +185,10 @@
                 return `
                     <tr class="hover:bg-gray-50 transition duration-150">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            ${assessment.unitCode} - ${assessment.unitName}
+                            ${assessment.unitCode || 'N/A'} - ${assessment.unitName || 'No Title'}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                            ${assessment.type}
+                            ${assessment.type || 'Assessment'}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-dapa-primary">
                             ${formattedDate}
@@ -197,7 +209,21 @@
                 console.log("App ID:", appId);
 
                 if (Object.keys(firebaseConfig).length === 0) {
-                    throw new Error("Firebase Configuration is missing. Please ensure '__firebase_config' is defined.");
+                    const errMsg = "Firebase Configuration is missing. Firestore persistence is disabled.";
+                    console.warn(`⚠️ ${errMsg}`);
+                    document.getElementById('auth-status').textContent = "⚠️ Config Missing (No Persistence)";
+                    
+                    // Display a simple loading message since we can't fetch data
+                    document.getElementById('timetable-body').innerHTML = `
+                         <tr>
+                            <td colspan="3" class="p-8 text-center text-gray-500">
+                                <p class="font-bold">Database is disabled.</p>
+                                <p class="text-sm mt-1">Please ensure a valid Firebase Configuration is provided for data storage.</p>
+                            </td>
+                        </tr>
+                    `;
+                    // Exit the Firebase logic gracefully, preventing the outer catch from firing
+                    return; 
                 }
                 console.log("Firebase Config loaded successfully.");
 
@@ -232,6 +258,7 @@
                 document.getElementById('firestore-path').textContent = collectionPath;
                 console.log(`📡 Attempting to connect to Firestore path: ${collectionPath}`);
 
+                // Note: We avoid using query or orderBy() to prevent needing indexes, sorting client-side instead.
                 const q = collection(db, collectionPath);
 
                 // Use onSnapshot with an explicit error callback for verbose debugging
@@ -257,7 +284,7 @@
                         errorMessage = `[${errorCode}] ${error.message}`;
                         
                         if (error.code === 'permission-denied') {
-                            errorMessage += ". This is almost always a **Firestore Security Rule** issue. Check your rules to ensure the path is accessible.";
+                            errorMessage += " (Check Firestore Security Rules for path access: 'artifacts/{appId}/users/{userId}/assessments')";
                         }
                     }
 
@@ -269,7 +296,7 @@
                 // return unsubscribe;
 
             } catch (error) {
-                // Catch any fatal errors during initialization or sign-in
+                // Catch any fatal errors during authentication or general setup *after* config check
                 console.error("FATAL INITIALIZATION ERROR:", error);
                 const errorMessage = error.message || "An unknown error occurred during app initialization.";
                 renderErrorState(`Initialization Failed: ${errorMessage}`);
