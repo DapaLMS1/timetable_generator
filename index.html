@@ -125,6 +125,30 @@
         let db, auth;
 
         // --- CORE FUNCTIONS ---
+        
+        /**
+         * Loads mock data for the timetable when Firebase configuration is missing.
+         */
+        function loadMockData() {
+            console.warn("Using mock data as Firebase Configuration is missing.");
+            const mockAssessments = [
+                { unitCode: 'HLT35021', unitName: 'Dynamic Planning', type: 'Assignment 1', date: '2024-11-20' },
+                { unitCode: 'COMM101', unitName: 'Effective Communication', type: 'Presentation', date: '2024-12-05' },
+                { unitCode: 'TECH205', unitName: 'Digital Technologies', type: 'Exam', date: '2024-12-15' },
+                { unitCode: 'HLT35021', unitName: 'Assessment & Reporting', type: 'Major Project', date: '2024-12-22' },
+            ];
+            updateTimetable(mockAssessments);
+
+             document.getElementById('timetable-body').innerHTML += `
+                <tr>
+                    <td colspan="3" class="p-2 text-center text-sm font-bold text-blue-700 bg-blue-100/50">
+                        <p class="font-bold">MOCK DATA DISPLAYED</p>
+                        <p class="text-xs">Data is not persistent. Connect Firebase for real data.</p>
+                    </td>
+                </tr>
+            `;
+        }
+
 
         /**
          * Helper function to render an error message to the UI.
@@ -213,16 +237,10 @@
                     console.warn(`⚠️ ${errMsg}`);
                     document.getElementById('auth-status').textContent = "⚠️ Config Missing (No Persistence)";
                     
-                    // Display a simple loading message since we can't fetch data
-                    document.getElementById('timetable-body').innerHTML = `
-                         <tr>
-                            <td colspan="3" class="p-8 text-center text-gray-500">
-                                <p class="font-bold">Database is disabled.</p>
-                                <p class="text-sm mt-1">Please ensure a valid Firebase Configuration is provided for data storage.</p>
-                            </td>
-                        </tr>
-                    `;
-                    // Exit the Firebase logic gracefully, preventing the outer catch from firing
+                    // Display mock data instead of a disabled message
+                    loadMockData(); 
+                    
+                    // Exit the Firebase logic gracefully
                     return; 
                 }
                 console.log("Firebase Config loaded successfully.");
