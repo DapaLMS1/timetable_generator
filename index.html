@@ -498,7 +498,7 @@
             const stretchMessage = document.getElementById('stretch-message');
             const aggressiveMessage = document.getElementById('aggressive-message'); 
             const extensionMessage = document.getElementById('extension-message');
-            const criticalWarningMessage = document.getElementById('critical-warning-message'); // NEW
+            const criticalWarningMessage = document.getElementById('critical-warning-message'); 
 
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
@@ -542,7 +542,7 @@
             }
 
             // --- Dynamic Duration Calculation (Initial Time Span) ---
-            const endDateObj = new Date(courseAnchorDateStr);
+            const endDateObj = new Date(courseAnchorDateStr); // Date object of user's input
             endDateObj.setHours(12, 0, 0, 0); // Normalize to noon
             
             const timeDiff = endDateObj.getTime() - TODAY.getTime();
@@ -556,7 +556,12 @@
             // Update duration display
             durationEl.textContent = durationDisplay;
             durationPrintEl.textContent = durationDisplay;
-            // --- End Dynamic Duration Calculation ---
+
+            // ** FIX: Always display the fixed date the user entered for TPP End Date header **
+            const formattedOriginalEndDate = formatDate(endDateObj);
+            desiredEndDateEl.textContent = formattedOriginalEndDate;
+            desiredEndDatePrintEl.textContent = formattedOriginalEndDate;
+            // ** END FIX **
 
             // --- Scheduling Logic ---
             let finalResult;
@@ -573,8 +578,7 @@
                 
                 if (aggressiveResult.isStretched) {
                     // Still stretched even after 20% compression.
-                    // USER REQUEST: If CRITICAL, remove compression (use factor 1.0)
-                    // The timeline will still be impossible, but it shows the correct, uncompressed dates.
+                    // Use standard (uncompressed) timeline, but flag as critical
                     finalResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
                     isCriticalStretch = true; 
                 } else {
@@ -585,23 +589,38 @@
             // --- Check 2: Is there excess time (Start date in the future)? ---
             } else if (standardResult.latestCalculatedStartDate > TODAY) {
                 
-                const actualStartTime = getNextValidDate(TODAY); // The start date we *want*
-                const calculatedStartTime = standardResult.latestCalculatedStartDate; // The date the backward calculation returned
+                const actualStartTime = getNextValidDate(TODAY); // The start date we *want* (Today or next valid day)
+                const calculatedStartTime = standardResult.latestCalculatedStartDate; // The backward-calculated start date
                 
-                // Calculate the difference in days to shift the timeline forward
+                // The time buffer is the difference in days to shift the timeline forward
                 const timeDifferenceMs = calculatedStartTime.getTime() - actualStartTime.getTime();
                 const shiftDays = Math.ceil(timeDifferenceMs / (1000 * 60 * 60 * 24));
                 
                 if (shiftDays > 0) {
-                    // 2. Extend the TPP End Date (anchor) by the gap duration
-                    const newAnchorDate = new Date(standardResult.adjustedCourseEndDate.getTime());
-                    newAnchorDate.setDate(newAnchorDate.getDate() + shiftDays);
-                    
-                    // 3. Recalculate the schedule backward from the extended end date
-                    const newAnchorDateStr = formatInputDate(newAnchorDate);
-                    
-                    finalResult = calculateSchedule(data, newAnchorDateStr, 1.0);
+                    // Use the un-extended schedule from the standard calculation
+                    finalResult = standardResult;
                     isExtendedSchedule = true;
+                    
+                    // The actual start date of the course is today/next valid day
+                    finalResult.latestCalculatedStartDate = actualStartTime;
+
+                    // Calculate the duration of the buffer in weeks for display
+                    const bufferWeeks = Math.ceil(shiftDays / 7);
+                    
+                    // Create the synthetic buffer task to represent the extension
+                    const bufferTask = {
+                        UnitCode: 'BUFFER',
+                        UnitDescription: 'Start Buffer / Extension Period',
+                        AssessmentName: 'START BUFFER APPLIED',
+                        AssessmentDescription: `This ${bufferWeeks} week buffer period utilizes the time available before your first assessment must begin to meet the TPP End Date.`,
+                        Weeks: `${bufferWeeks} week${bufferWeeks === 1 ? '' : 's'}`,
+                        DurationFactor: 1.0,
+                        SubmissionDate: calculatedStartTime, // This is the date the actual first assessment must start
+                    };
+                    
+                    // Add the buffer task to the front of the schedule
+                    finalResult.calculatedSchedule.unshift(bufferTask);
+
                 } else {
                     // Start date is exactly today (or next valid day), use standard result
                     finalResult = standardResult;
@@ -615,8 +634,6 @@
             // 4. Update Header Display based on final result
             calculatedStartDateEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
             calculatedStartDatePrintEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
-            desiredEndDateEl.textContent = formatDate(finalResult.adjustedCourseEndDate);
-            desiredEndDatePrintEl.textContent = formatDate(finalResult.adjustedCourseEndDate);
             
             // 5. Display appropriate message and apply red color if critical
             
@@ -629,7 +646,7 @@
                 });
 
             } else if (isExtendedSchedule) {
-                // EXTENSION APPLIED
+                // EXTENSION APPLIED (Now uses the buffer task in the table)
                 extensionMessage.classList.remove('hidden');
             } else if (finalResult.DurationFactor < 1.0) {
                 // ACCELERATED (20% reduction) APPLIED
@@ -646,8 +663,10 @@
 
             finalResult.calculatedSchedule.forEach((item) => {
                 const isNewUnit = item.UnitCode !== lastUnitCode;
+                const isBufferTask = item.UnitCode === 'BUFFER'; // Check for the new buffer task
 
-                if (isNewUnit) {
+                // --- Handle Unit Header ---
+                if (isNewUnit && !isBufferTask) { 
                     // Insert the section break row for the new unit
                     const unitHeaderRow = document.createElement('tr');
                     unitHeaderRow.className = 'bg-dapa-secondary/50 border-t-8 border-dapa-primary';
@@ -659,10 +678,38 @@
                     container.appendChild(unitHeaderRow);
                 }
 
-                lastUnitCode = item.UnitCode;
-
                 const dateString = formatDate(item.SubmissionDate);
                 const isPastDue = item.SubmissionDate < TODAY;
+
+                // --- Handle Buffer Task Rendering ---
+                if (isBufferTask) {
+                    const bufferStart = formatDate(finalResult.latestCalculatedStartDate);
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'timetable-row bg-blue-100 hover:bg-blue-200 transition duration-150 ease-in-out font-semibold border-b-4 border-blue-300';
+                    
+                    row.innerHTML = `
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-blue-800 w-1/12">
+                            <span class="font-extrabold">${item.AssessmentName}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-blue-800 w-6/12">
+                            ${item.AssessmentDescription}
+                            <p class="text-xs text-blue-600 italic mt-1">Duration: ${item.Weeks}</p>
+                        </td>
+                        <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold text-blue-600 w-4/12">
+                            <p class="text-xs font-medium text-gray-500">Commencement Date:</p>
+                            <span class="text-lg">${bufferStart}</span>
+                            <p class="text-xs font-medium text-gray-500 mt-1">First Task Submission:</p>
+                            <span class="text-lg">${dateString}</span>
+                        </td>
+                    `;
+                    container.appendChild(row);
+                    lastUnitCode = item.UnitCode; 
+                    return; // Skip the rest of the generic rendering for this special task
+                }
+                
+                // --- Handle Standard Task Rendering ---
+                lastUnitCode = item.UnitCode;
 
                 const row = document.createElement('tr');
                 // Highlight row if it is past due
@@ -680,6 +727,10 @@
                     // Display specific percentage
                     durationText = `Compressed (${reductionPercent}% Reduction) from ${item.Weeks}`;
                 }
+                
+                let submissionCellContent = dateString;
+                let submissionCellClasses = isPastDue ? 'text-red-600' : 'text-green-600';
+                
 
                 row.innerHTML = `
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium w-1/12">
@@ -689,9 +740,9 @@
                         ${item.AssessmentDescription}
                         <p class="text-xs text-gray-500 italic">${durationText}</p>
                     </td>
-                    <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${isPastDue ? 'text-red-600' : 'text-green-600'} w-4/12">
-                        ${dateString}
-                        ${isPastDue ? '<p class="text-xs font-medium text-red-500">Insufficient Time</p>' : ''}
+                    <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${submissionCellClasses} w-4/12">
+                        ${submissionCellContent}
+                        ${isPastDue && item.AssessmentName !== 'Final Task' ? '<p class="text-xs font-medium text-red-500">Insufficient Time</p>' : ''}
                     </td>
                 `;
                 container.appendChild(row);
@@ -806,7 +857,7 @@
             </div>
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">TPP End Date</p>
-                <!-- Color will be applied via JavaScript if critical stretch is detected -->
+                <!-- This now displays the fixed date entered by the user -->
                 <p id="display-end-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
             <!-- DURATION BLOCK -->
@@ -836,10 +887,10 @@
             <p class="text-sm font-medium text-yellow-800 mt-1">The schedule below uses a <strong>20% time reduction</strong> to meet your desired end date. This timeline is faster than recommended.</p>
         </div>
         
-        <!-- Extension Applied Message -->
+        <!-- Extension Applied Message (Used when buffer task is added) -->
         <div class="p-4 bg-blue-100 rounded-lg shadow-md border-b-4 border-blue-500 hidden" id="extension-message">
-            <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">EXTENSION APPLIED</p>
-            <p class="text-sm font-medium text-blue-800 mt-1">Your timeline has been extended to use all available time between today and your TPP End Date.</p>
+            <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">BUFFER PERIOD DETECTED</p>
+            <p class="text-sm font-medium text-blue-800 mt-1">There is more time available. Extra time has been added at the beginning of the timetable to utilize all available time until your first assessment must begin.</p>
         </div>
 
         <!-- Print Info Block (Shown only on Print) -->
