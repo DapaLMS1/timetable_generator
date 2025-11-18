@@ -203,7 +203,7 @@
          */
         async function loadStudentDetailsAndGenerate() {
             // STEP 1: Load Timetable Data from CSV first
-            await window.loadTimetableData();
+            const loadSuccess = await window.loadTimetableData();
 
             const savedDetails = await loadStudentDetails();
             const studentNameInput = document.getElementById('student-name');
@@ -215,19 +215,20 @@
             if (savedDetails.number) studentNumberInput.value = savedDetails.number;
             if (savedDetails.tppEndDate) tppEndDateInput.value = savedDetails.tppEndDate;
 
-            // Generate initial schedule if TPP End Date is set
-            if (tppEndDateInput.value && window.courseUnits.length > 0) {
-                document.getElementById('generate-button').click();
-            } else if (window.courseUnits.length === 0) {
+            // Update timetable based on load result
+            if (!loadSuccess || window.courseUnits.length === 0) {
                  document.getElementById('timetable-body').innerHTML = `
                     <tr>
                         <td colspan="3" class="p-8 text-center text-red-500">
-                            Assessment data failed to load. Please check console for errors.
+                            Assessment data failed to load or is empty. Please check the CSV file content and format.
                         </td>
                     </tr>
                 `;
             } 
-            else {
+            else if (tppEndDateInput.value) {
+                // Generate initial schedule if TPP End Date is set
+                document.getElementById('generate-button').click();
+            } else {
                  document.getElementById('timetable-body').innerHTML = `
                     <tr>
                         <td colspan="3" class="p-8 text-center text-gray-500">
@@ -271,71 +272,117 @@
         const WORKING_DAYS_PER_WEEK = 5; 
 
         /**
-         * Loads and parses timetable data from the CSV file.
+         * Loads and parses timetable data from the CSV file with enhanced error handling.
+         * @returns {Promise<boolean>} True if data loaded successfully, false otherwise.
          */
         async function loadTimetableData() {
+            const timetableBody = document.getElementById('timetable-body');
+            window.courseUnits = []; // Reset global data
+            
             try {
                 const response = await fetch('TIMETABLE_DATA.csv');
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status} (${response.statusText}) - Could not find or access the CSV file.`);
                 }
                 const csvText = await response.text();
-                const lines = csvText.trim().split('\n');
+                // Filter out empty lines, whitespace-only lines, and comment lines
+                const lines = csvText.trim().split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0 && !line.startsWith('#'));
                 
-                // Remove header line
-                lines.shift(); 
+                if (lines.length === 0) {
+                     console.warn("CSV file is empty or contains only headers/comments.");
+                     return false;
+                }
                 
+                // Use the first line as the header (we still shift it off later)
+                const header = lines.shift(); 
+                const expectedColumnCount = 5;
                 const unitsMap = new Map();
+                let successfulLines = 0;
+                let errorLines = [];
                 
-                for (const line of lines) {
-                    // New columns: Unit Code, Unit Description, Assessment, Assessment Description, Days Required
-                    const [unitCode, unitTitle, assessmentName, assessmentDescription, daysStr] = line.split(',');
-                    const daysRequired = parseInt(daysStr); // New: parse days
-                    
-                    // Check for minimum required data: Unit Code, Assessment Description, and a valid number of Days Required
-                    if (unitCode && assessmentDescription && !isNaN(daysRequired) && daysRequired > 0) { 
-                        const unitKey = unitCode.trim();
-                        if (!unitsMap.has(unitKey)) {
-                            unitsMap.set(unitKey, {
-                                unit: unitKey,
-                                title: unitTitle ? unitTitle.trim() : 'N/A', // Use Unit Description as title
-                                tasks: []
-                            });
-                        }
-                        
-                        const unitData = unitsMap.get(unitKey);
-                        
-                        // Combine Assessment Name and Assessment Description for a full description
-                        const fullDescription = `${assessmentName.trim()}${assessmentDescription.trim() ? ': ' + assessmentDescription.trim() : ''}`;
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    // Split the line, ensuring it handles commas within quotes if possible, 
+                    // but for simplicity, we rely on standard comma splitting and trimming.
+                    const columns = line.split(',');
 
-                        // Add the task
-                        unitData.tasks.push({
-                            id: `${unitKey.toLowerCase()}_${unitData.tasks.length + 1}`,
-                            description: fullDescription,
-                            days: daysRequired // New: save days
+                    if (columns.length !== expectedColumnCount) {
+                        const errorMsg = `Line ${i + 2} skipped: Expected ${expectedColumnCount} columns, got ${columns.length}.`;
+                        console.error(errorMsg, {line: line});
+                        errorLines.push(errorMsg);
+                        continue;
+                    }
+                    
+                    // Assign and trim values
+                    const [unitCode, unitTitle, assessmentName, assessmentDescription, daysStr] = columns.map(c => c.trim());
+                    const daysRequired = parseInt(daysStr); 
+                    
+                    // Data validation checks
+                    if (!unitCode) {
+                        errorLines.push(`Line ${i + 2} skipped: Missing Unit Code.`);
+                        continue;
+                    }
+                    if (!assessmentDescription) {
+                        errorLines.push(`Line ${i + 2} skipped: Missing Assessment Description.`);
+                        continue;
+                    }
+                    if (isNaN(daysRequired) || daysRequired <= 0) {
+                        errorLines.push(`Line ${i + 2} skipped: Invalid Days Required ('${daysStr}'). Must be a number > 0.`);
+                        continue;
+                    }
+
+                    // Proceed with successful parsing
+                    const unitKey = unitCode;
+
+                    if (!unitsMap.has(unitKey)) {
+                        unitsMap.set(unitKey, {
+                            unit: unitKey,
+                            title: unitTitle || 'N/A', 
+                            tasks: []
                         });
                     }
+                    
+                    const unitData = unitsMap.get(unitKey);
+                    
+                    // Combine Assessment Name and Assessment Description
+                    const fullDescription = `${assessmentName}${assessmentDescription ? ': ' + assessmentDescription : ''}`;
+
+                    // Add the task
+                    unitData.tasks.push({
+                        id: `${unitKey.toLowerCase()}_${unitData.tasks.length + 1}`,
+                        description: fullDescription,
+                        days: daysRequired 
+                    });
+                    successfulLines++;
                 }
                 
                 // Convert map values to the final global array
                 window.courseUnits = Array.from(unitsMap.values());
-                console.log("Timetable data loaded successfully from CSV.", window.courseUnits);
-
+                console.log(`Timetable data loaded successfully. Total successful tasks: ${successfulLines}.`);
+                
+                if (errorLines.length > 0) {
+                     console.warn(`Partial load complete, but ${errorLines.length} line(s) failed to parse:`, errorLines);
+                }
+                
+                return window.courseUnits.length > 0; // Return true if we have any valid units
             } catch (error) {
-                console.error("Error loading timetable data from CSV:", error);
-                window.courseUnits = []; // Ensure it's empty on failure
-                const timetableBody = document.getElementById('timetable-body');
+                console.error("Critical Error loading timetable data from CSV:", error);
+                // Display the error in the timetable body
                 if(timetableBody) {
-                    timetableBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-500">
-                        Error: Failed to load assessment data from 'timetable_data.csv'. Check the file path and format.
+                    timetableBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-700 font-bold">
+                        CRITICAL ERROR: Failed to load assessment data.<br>
+                        Details: ${error.message}
                     </td></tr>`;
                 }
+                return false;
             }
         }
         window.loadTimetableData = loadTimetableData;
 
 
-        // --- SCHEDULING LOGIC ---
+        // --- SCHEDULING LOGIC (Unchanged from original) ---
 
         /**
          * Checks if a date is a public holiday.
@@ -410,6 +457,14 @@
             
             if (assessmentUnits.length === 0) {
                 console.error("Cannot generate timetable: Assessment data is empty.");
+                // Ensure a message is shown if data is missing *after* a load attempt
+                document.getElementById('timetable-body').innerHTML = `
+                    <tr>
+                        <td colspan="3" class="p-8 text-center text-red-500">
+                            Assessment data failed to load or is empty. Please check the CSV file content and format.
+                        </td>
+                    </tr>
+                `;
                 return; 
             }
 
@@ -436,7 +491,6 @@
             }
 
             if (!tppEndDateStr) {
-                // This case should be handled by loadStudentDetailsAndGenerate, but good for safety
                 return;
             }
 
@@ -666,7 +720,7 @@
             `;
         }
     
-        // --- EVENT LISTENERS AND HELPERS ---
+        // --- EVENT LISTENERS AND HELPERS (Unchanged from original) ---
 
         document.addEventListener('DOMContentLoaded', () => {
             const generateButton = document.getElementById('generate-button');
