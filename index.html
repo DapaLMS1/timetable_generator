@@ -136,13 +136,16 @@
 
         let db, auth;
 
+        // Define a unique identifier for the hardcoded config to check against
+        const HARDCODED_PROJECT_ID = "dapa-firestore"; 
+
         // --- CORE FUNCTIONS ---
         
         /**
          * Loads mock data for the timetable when Firebase configuration is missing (only used if firebaseConfig is empty).
          */
         function loadMockData() {
-            console.warn("Using mock data as Firebase Configuration is missing.");
+            console.warn("Using mock data as Firebase Configuration is missing/invalid.");
             const mockAssessments = [
                 { unitCode: 'HLT35021', unitName: 'Dynamic Planning', type: 'Assignment 1', date: '2024-11-20' },
                 { unitCode: 'COMM101', unitName: 'Effective Communication', type: 'Presentation', date: '2024-12-05' },
@@ -155,10 +158,12 @@
                 <tr>
                     <td colspan="3" class="p-2 text-center text-sm font-bold text-blue-700 bg-blue-100/50">
                         <p class="font-bold">MOCK DATA DISPLAYED</p>
-                        <p class="text-xs">Data is not persistent. Connect Firebase for real data.</p>
+                        <p class="text-xs">Data is not persistent. Connect a valid Firebase project for real data.</p>
                     </td>
                 </tr>
             `;
+            document.getElementById('auth-status').textContent = "MOCK DATA";
+            document.getElementById('firestore-path').textContent = "N/A";
         }
 
 
@@ -235,7 +240,9 @@
         }
 
         /**
-         * Initializes Firebase and sets up the Firestore listener.
+         * Initializes Firebase and sets up the Firestore listener, 
+         * or falls back to mock data if the provided configuration is invalid 
+         * for the current execution environment.
          */
         async function initFirebaseAndLoadData() {
             try {
@@ -243,21 +250,19 @@
                 setLogLevel('debug');
                 console.log("--- STARTING FIREBASE INITIALIZATION ---");
                 console.log("App ID:", appId);
-                // Log the initialAuthToken state for debugging the custom token issue
                 console.log("Initial Auth Token State:", initialAuthToken ? "Present" : "Not Present/Null");
 
 
-                if (Object.keys(firebaseConfig).length === 0) {
-                    const errMsg = "Firebase Configuration is missing. Firestore persistence is disabled.";
-                    console.warn(`⚠️ ${errMsg}`);
-                    document.getElementById('auth-status').textContent = "⚠️ Config Missing (No Persistence)";
-                    
-                    // Display mock data instead of a disabled message
-                    loadMockData(); 
-                    
-                    // Exit the Firebase logic gracefully
-                    return; 
+                // CRITICAL NEW CHECK: If the hardcoded config is present, assume we are outside 
+                // the required Canvas environment where Auth works, and load mock data.
+                if (firebaseConfig.projectId === HARDCODED_PROJECT_ID) {
+                    const warnMsg = "Detected hardcoded Firebase configuration ('dapa-firestore'). Skipping Auth/Firestore initialization to prevent FATAL error and loading MOCK data instead.";
+                    console.warn(`⚠️ ${warnMsg}`);
+                    loadMockData();
+                    return;
                 }
+                
+                // --- START Standard Firebase Initialization Flow ---
                 console.log("Firebase Config loaded successfully.");
 
                 // 1. Initialize Firebase App
@@ -269,7 +274,6 @@
                 let signInSuccessful = false;
 
                 // 2a. Attempt Custom Token sign-in if the token is available AND is a non-empty string.
-                // This is the critical change to avoid calling the problematic function when the token is null/undefined.
                 if (initialAuthToken && typeof initialAuthToken === 'string' && initialAuthToken.length > 0) {
                     try {
                         await signInWithCustomToken(auth, initialAuthToken);
@@ -342,6 +346,8 @@
 
                 // In a real app, you might return the unsubscribe function to clean up later.
                 // return unsubscribe;
+                
+                // --- END Standard Firebase Initialization Flow ---
 
             } catch (error) {
                 // Catch any fatal errors during authentication or general setup *after* config check
