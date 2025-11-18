@@ -117,6 +117,22 @@
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
         ];
+
+        // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
+        // Submission dates will be moved to the next business day if they fall on one of these dates.
+        const PUBLIC_HOLIDAYS = [
+            "2026-01-01", // New Year's Day
+            "2026-01-26", // Australia Day
+            "2026-04-03", // Good Friday
+            "2026-04-04", // Easter Saturday
+            "2026-04-05", // Easter Sunday
+            "2026-04-06", // Easter Monday
+            "2026-04-27", // Anzac Day (Observed Monday)
+            "2026-06-08", // King's Birthday
+            "2026-10-05", // Labour Day
+            "2026-12-25", // Christmas Day
+            "2026-12-28", // Boxing Day (Observed Monday)
+        ];
         
         // Firestore path helper for student details
         const getStudentDetailsDocRef = (uid) => doc(db, 'artifacts', appId, 'users', uid, 'studentDetails', 'info');
@@ -136,11 +152,57 @@
         };
 
         // --- Date Calculation Helper ---
+
         /**
-         * Adds a specified number of weeks to a base Date object.
+         * Checks if a date falls on a weekend (Saturday or Sunday).
+         * @param {Date} date - The Date object to check.
+         * @returns {boolean} True if it's a weekend, false otherwise.
+         */
+        function isWeekend(date) {
+            const day = date.getDay();
+            return day === 0 || day === 6; // Sunday (0) or Saturday (6)
+        }
+
+        /**
+         * Checks if a date falls on a representative public holiday.
+         * Note: This list is fixed and representative for demonstration purposes.
+         * @param {Date} date - The Date object to check.
+         * @returns {boolean} True if it's a holiday, false otherwise.
+         */
+        function isHoliday(date) {
+            // Format the date as YYYY-MM-DD for comparison
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            return PUBLIC_HOLIDAYS.includes(dateStr);
+        }
+
+        /**
+         * Finds the next valid working day (Monday to Friday, non-holiday).
+         * Advances the date if it falls on a weekend or a representative public holiday.
+         * @param {Date} date - The calculated date.
+         * @returns {Date} The next valid working date.
+         */
+        function getNextValidDate(date) {
+            const validDate = new Date(date); // Work with a copy
+
+            // Keep adding a day until it's a weekday and not a holiday
+            while (isWeekend(validDate) || isHoliday(validDate)) {
+                // Add one day to the current date
+                validDate.setDate(validDate.getDate() + 1);
+            }
+            return validDate;
+        }
+
+
+        /**
+         * Adds a specified number of weeks to a base Date object, then adjusts the date 
+         * to the next available weekday (not a weekend or holiday).
          * @param {Date} baseDate - The Date object to start from.
          * @param {string} weeksStr - The duration string (e.g., "1 week", "2 weeks", "0 week").
-         * @returns {Date} The new Date object after adding the weeks.
+         * @returns {Date} The new Date object after adding the weeks and adjustment.
          */
         function addWeeksToDate(baseDate, weeksStr) {
             // Parse weeks from string (e.g., "1 week", "2 weeks", "0 week")
@@ -150,10 +212,11 @@
             // Calculate milliseconds for N weeks: weeks * 7 days/week * ...
             const msInWeek = 7 * 24 * 60 * 60 * 1000;
             
-            // Create a new Date object to avoid mutating the input baseDate
-            const newDate = new Date(baseDate.getTime() + (weeks * msInWeek));
-
-            return newDate;
+            // Create a new Date object and add weeks (raw calculation)
+            const rawDate = new Date(baseDate.getTime() + (weeks * msInWeek));
+            
+            // Adjust the date to the next valid working day
+            return getNextValidDate(rawDate);
         }
 
         /**
@@ -200,7 +263,7 @@
             e.preventDefault();
             if (!userId || !db) { 
                 showMessage("Not authenticated. Cannot save."); 
-                return; // Corrected: moved return to a separate line
+                return;
             }
 
             const newDetails = {
@@ -249,9 +312,13 @@
                 return;
             }
 
+            // Adjust the start date itself if it's a weekend/holiday
+            currentCompletionDate = getNextValidDate(currentCompletionDate);
+
             data.forEach((item) => {
                 
                 // 1. Calculate the *next* cumulative completion date by adding the current item's weeks.
+                // The addWeeksToDate function now handles the weekend/holiday adjustment internally.
                 currentCompletionDate = addWeeksToDate(currentCompletionDate, item.Weeks);
                 
                 // 2. Format the date display. All non-error dates are consistently bold.
@@ -377,9 +444,13 @@
         <div class="header-section mb-6">
             <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 Dental Assisting Timetable</h1>
             <!-- Updated description text -->
-            <p class="text-gray-600 mb-6">Review your estimated submission schedule below based on your course start date.</p>
+            <p class="text-gray-600 mb-2">Review your estimated submission schedule below based on your course start date.</p>
+            <p class="text-sm text-gray-500 italic border-l-4 border-yellow-500 pl-3 py-1 bg-yellow-50 rounded-md">
+                Submission dates automatically adjust to the next business day if they fall on a weekend or a public holiday. 
+                (The public holiday list is a fixed, representative sample for demonstration purposes).
+            </p>
 
-            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mt-4">
                 <!-- Student Details Form (now full width) -->
                 <form id="student-details-form" class="w-full grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <div class="sm:col-span-1">
