@@ -241,10 +241,20 @@
                 const docSnap = await getDoc(getStudentDetailsDocRef(userId));
                 if (docSnap.exists()) {
                     studentDetails = docSnap.data();
+                    
+                    const startDateInput = document.getElementById('course-start-date');
+                    
                     // Update form fields with loaded data
                     document.getElementById('student-name').value = studentDetails.name || '';
                     document.getElementById('student-number').value = studentDetails.number || '';
-                    document.getElementById('course-start-date').value = studentDetails.startDate || ''; 
+                    
+                    // Set the full YYYY-MM-DD value needed by type="date"
+                    if (studentDetails.startDate) {
+                        startDateInput.value = studentDetails.startDate; 
+                    } else {
+                        startDateInput.value = '';
+                    }
+                    
                 } else {
                     console.log("No student details found. Using defaults/empty.");
                 }
@@ -265,11 +275,21 @@
                 showMessage("Not authenticated. Cannot save."); 
                 return;
             }
+            
+            // --- Start Date Handling Update ---
+            // The input will be in YYYY-MM-DD format (native date input behavior)
+            const startDateInput = document.getElementById('course-start-date').value.trim();
+            
+            if (!startDateInput) {
+                showMessage("Please select a Course Start Date.", true);
+                return;
+            }
+            // --- End Update ---
 
             const newDetails = {
                 name: document.getElementById('student-name').value.trim(),
                 number: document.getElementById('student-number').value.trim(),
-                startDate: document.getElementById('course-start-date').value.trim(), 
+                startDate: startDateInput, // Save the YYYY-MM-DD value directly
             };
             
             try {
@@ -292,12 +312,12 @@
 
             let html = '';
             let currentUnitCode = null;
-            const startDateStr = studentDetails.startDate; // Get the start date string
+            const startDateStr = studentDetails.startDate; // Get the start date string (YYYY-MM-DD)
 
             // Guard clause for missing start date
             if (!startDateStr) {
                 // Changed colspan to 4
-                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Please enter a Course Start Date and click "Save Details" to generate the cumulative schedule.</td></tr>';
+                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Please enter a Course Start Date and click "Save Details & Calculate Dates" to generate the cumulative schedule.</td></tr>';
                 return;
             }
             
@@ -342,7 +362,6 @@
                     <tr class="timetable-row border-b border-gray-200 bg-white" data-unit-code="${item.UnitCode}" data-assessment-name="${item.AssessmentName}">
                         <!-- Unit Code (w-1/12) -->
                         <td class="px-4 py-3 text-sm font-medium text-gray-900 w-1/12">${item.UnitCode === 'INTRO' ? '' : item.UnitCode}</td>
-                        <!-- Unit Description column REMOVED -->
                         <!-- Assessment (w-1/12) -->
                         <td class="px-4 py-3 text-sm text-gray-700 w-1/12">${item.AssessmentName}</td>
                         <!-- Assessment Description (w-4/12 + w-3/12 = w-7/12) -->
@@ -461,10 +480,13 @@
                         <label for="student-number" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Number</label>
                         <input type="text" id="student-number" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="S1234567">
                     </div>
+                    <!-- START: Reverted input to type="date" for full date selection -->
                     <div class="sm:col-span-1">
                         <label for="course-start-date" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Course Start Date</label>
-                        <input type="date" id="course-start-date" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition">
+                        <input type="date" id="course-start-date" 
+                            class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition">
                     </div>
+                    <!-- END: Reverted input -->
                     <div class="sm:col-span-1 pt-2 flex items-end">
                          <!-- Removed onclick attribute and will handle submission via event listener on the form element -->
                          <button type="submit" class="bg-dapa-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-dapa-accent-hover transition duration-300 w-full">
