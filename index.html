@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HLT35021 DAPA Assessment Timetable</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         /* Define DAPA Color Palette */
@@ -13,8 +15,6 @@
             --dapa-secondary: #C3ACE8; /* Light Purple/Lavender (Buttons, Highlights) */
             --dapa-background: #F2F2F2; /* Very Light Grey (Body Background) */
             --dapa-accent-hover: #9D8ABB; /* Muted Medium Purple (Hover State) */
-            --dapa-success-bg: #E8F5E9; /* Very Light Green for completed rows */
-            --dapa-success-border: #96BF78; /* Muted Light Green for completed borders */
         }
         /* Custom styles to incorporate DAPA colors via Tailwind theme */
         .bg-dapa-primary { background-color: var(--dapa-primary); }
@@ -38,32 +38,13 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
             border-top: 5px solid var(--dapa-primary);
         }
+        /* Row animations and styling */
         .timetable-row {
             transition: background-color 0.3s ease, transform 0.1s ease;
         }
         .timetable-row:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-        }
-        .completed-row {
-            background-color: var(--dapa-success-bg);
-            border-left: 5px solid var(--dapa-success-border);
-            opacity: 0.7;
-        }
-        .completed-row .toggle-complete-btn {
-            background-color: var(--dapa-success-border);
-            color: var(--dapa-primary);
-        }
-        .completed-row .toggle-complete-btn:hover {
-            background-color: #7AA358; /* Slightly darker green */
-        }
-        .toggle-complete-btn {
-            background-color: var(--dapa-secondary);
-            color: var(--dapa-primary);
-            transition: background-color 0.2s;
-        }
-        .toggle-complete-btn:hover {
-            background-color: var(--dapa-accent-hover);
         }
         /* Message Box Styling */
         #message-box {
@@ -75,9 +56,10 @@
     </style>
     <!-- Firebase Libraries -->
     <script type="module">
+        // Import necessary Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, orderBy, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
         // Global variables provided by the Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -87,12 +69,11 @@
         let db;
         let auth;
         let userId = null;
-        let unsubscribeTimetable = null;
 
-        // --- Data from Spreadsheet (TIMETABLE_ HLT35021_V7 (DRAFT) (1).xlsx - Sheet1.csv) ---
-        // This array is the source of truth for the unit and assessment descriptions.
+        // --- Data Source for Assessments ---
+        // This array holds the static timetable structure.
         const UNIT_ASSESSMENT_DATA = [
-            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction (Mandatory)', Weeks: '' },
+            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction (Mandatory)', Weeks: '0 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 1', AssessmentDescription: 'The Dental Health Team', Weeks: '1 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 2', AssessmentDescription: 'Ethics and Jurisprudence', Weeks: '1 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 3', AssessmentDescription: 'Psychology for Dental Assistants', Weeks: '0 week' },
@@ -132,23 +113,21 @@
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 3', AssessmentDescription: 'Process and reconcile patient accounts', Weeks: '1 week' },
             { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 4', AssessmentDescription: 'Maintain patient records', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with patient recalls', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
             { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
             { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 3', AssessmentName: 'Spreadsheets', Weeks: '1 week' },
             { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
-            { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentDescription: 'Reflective journal', Weeks: '1 week' },
+            { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentName: 'Reflective journal', Weeks: '1 week' },
         ];
         
-        // Firestore path helpers
-        const getTimetableDocRef = (uid) => doc(db, 'artifacts', appId, 'users', uid, 'timetableData', 'progress');
+        // Firestore path helper for student details
         const getStudentDetailsDocRef = (uid) => doc(db, 'artifacts', appId, 'users', uid, 'studentDetails', 'info');
 
         // State variables
-        let studentDetails = { name: '', number: '', courseDates: '' };
-        let studentProgress = {}; // Stores { 'UnitCode-AssessmentName': boolean }
+        let studentDetails = { name: '', number: '', startDate: '' }; 
 
-        // Utility to show messages
+        // Utility to show temporary, custom messages (instead of alert())
         const showMessage = (message, isError = false) => {
             const box = document.getElementById('message-box');
             box.innerHTML = `
@@ -159,115 +138,132 @@
             setTimeout(() => { box.innerHTML = ''; }, 3000);
         };
 
+        // --- Date Calculation Helper ---
+        /**
+         * Adds a specified number of weeks to a base Date object.
+         * @param {Date} baseDate - The Date object to start from.
+         * @param {string} weeksStr - The duration string (e.g., "1 week", "2 weeks", "0 week").
+         * @returns {Date} The new Date object after adding the weeks.
+         */
+        function addWeeksToDate(baseDate, weeksStr) {
+            // Parse weeks from string (e.g., "1 week", "2 weeks", "0 week")
+            const match = weeksStr.match(/(\d+)/);
+            const weeks = match ? parseInt(match[1], 10) : 0;
+
+            // Calculate milliseconds for N weeks: weeks * 7 days/week * ...
+            const msInWeek = 7 * 24 * 60 * 60 * 1000;
+            
+            // Create a new Date object to avoid mutating the input baseDate
+            const newDate = new Date(baseDate.getTime() + (weeks * msInWeek));
+
+            return newDate;
+        }
+
+        /**
+         * Formats a Date object to DD/MM/YYYY string.
+         * @param {Date} dateObj - The Date object to format.
+         * @returns {string} Formatted date (DD/MM/YYYY).
+         */
+        function formatDate(dateObj) {
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+            const year = dateObj.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+        
         // --- Firebase Functions ---
         
+        // Load student details and render the timetable
         async function loadStudentDetails() {
             if (!userId || !db) return;
 
-            // 1. Load Student Info
             try {
                 const docSnap = await getDoc(getStudentDetailsDocRef(userId));
                 if (docSnap.exists()) {
                     studentDetails = docSnap.data();
+                    // Update form fields with loaded data
                     document.getElementById('student-name').value = studentDetails.name || '';
                     document.getElementById('student-number').value = studentDetails.number || '';
-                    document.getElementById('course-dates').value = studentDetails.courseDates || '';
+                    document.getElementById('course-start-date').value = studentDetails.startDate || ''; 
                 } else {
                     console.log("No student details found. Using defaults/empty.");
                 }
+                // Always render the timetable after trying to load details
+                renderTimetable(UNIT_ASSESSMENT_DATA); 
+
             } catch (e) {
                 console.error("Error loading student details:", e);
                 showMessage("Failed to load student details.", true);
+                renderTimetable(UNIT_ASSESSMENT_DATA); // Render default table on error
             }
-
-            // 2. Load Timetable Progress (Realtime listener)
-            if (unsubscribeTimetable) {
-                unsubscribeTimetable(); // Clean up previous listener if it exists
-            }
-            unsubscribeTimetable = onSnapshot(getTimetableDocRef(userId), (docSnap) => {
-                if (docSnap.exists()) {
-                    studentProgress = docSnap.data() || {};
-                    console.log("Timetable progress updated from Firestore:", studentProgress);
-                } else {
-                    studentProgress = {};
-                    console.log("No timetable progress found. Initializing empty progress.");
-                }
-                // Always re-render the timetable on progress change
-                renderTimetable(UNIT_ASSESSMENT_DATA, studentProgress);
-            }, (error) => {
-                console.error("Error setting up timetable progress listener:", error);
-                showMessage("Failed to set up real-time progress updates.", true);
-            });
         }
 
-        async function saveStudentDetails(e) {
+        // Save student details (Name, Number, Start Date) to Firestore
+        window.saveStudentDetails = async (e) => {
             e.preventDefault();
             if (!userId || !db) { showMessage("Not authenticated. Cannot save.", true); return; }
 
             const newDetails = {
                 name: document.getElementById('student-name').value.trim(),
                 number: document.getElementById('student-number').value.trim(),
-                courseDates: document.getElementById('course-dates').value.trim(),
+                startDate: document.getElementById('course-start-date').value.trim(), 
             };
             
             try {
                 await setDoc(getStudentDetailsDocRef(userId), newDetails, { merge: true });
                 studentDetails = newDetails;
+                // Re-render immediately to update calculated dates
+                renderTimetable(UNIT_ASSESSMENT_DATA);
                 showMessage("Student details saved successfully!");
             } catch (e) {
                 console.error("Error saving student details:", e);
                 showMessage("Failed to save student details.", true);
             }
         }
-        
-        window.toggleAssessmentCompletion = async (unitCode, assessmentName) => {
-            if (!userId || !db) { showMessage("Not authenticated. Cannot update progress.", true); return; }
-
-            const key = `${unitCode}-${assessmentName}`;
-            const isCompleted = studentProgress[key] || false;
-            
-            // Prepare update object
-            const update = {
-                [key]: !isCompleted
-            };
-
-            try {
-                // Set the specific key within the progress document
-                await setDoc(getTimetableDocRef(userId), update, { merge: true });
-                // Note: The onSnapshot listener will handle the local update and re-render.
-                showMessage(`${unitCode} - ${assessmentName} marked as ${!isCompleted ? 'Complete' : 'Pending'}.`);
-            } catch (e) {
-                console.error("Error updating assessment progress:", e);
-                showMessage("Failed to update assessment progress.", true);
-            }
-        }
 
         // --- Rendering Function ---
 
-        function renderTimetable(data, progress) {
+        function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
             if (!container) return;
 
             let html = '';
             let currentUnitCode = null;
-            let totalTasks = data.length;
-            let completedTasks = 0;
+            const startDateStr = studentDetails.startDate; // Get the start date string
+
+            // Guard clause for missing start date
+            if (!startDateStr) {
+                // Changed colspan to 4
+                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Please enter a Course Start Date and click "Save Details" to generate the cumulative schedule.</td></tr>';
+                return;
+            }
+            
+            // Initialize the rolling completion date (start date)
+            let currentCompletionDate = new Date(startDateStr);
+            // Fix for timezone offset issue: setting the time to noon on the start date
+            currentCompletionDate.setHours(12, 0, 0, 0); 
+            
+            if (isNaN(currentCompletionDate.getTime())) {
+                // Changed colspan to 4
+                container.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-semibold">Invalid Course Start Date. Please correct the date input.</td></tr>';
+                return;
+            }
 
             data.forEach((item) => {
-                const key = `${item.UnitCode}-${item.AssessmentName}`;
-                const isCompleted = progress[key] === true;
                 
-                if (isCompleted) {
-                    completedTasks++;
-                }
+                // 1. Calculate the *next* cumulative completion date by adding the current item's weeks.
+                currentCompletionDate = addWeeksToDate(currentCompletionDate, item.Weeks);
+                
+                // 2. Format the date display. All non-error dates are consistently bold.
+                const dateDisplay = formatDate(currentCompletionDate);
 
-                // Start of a new unit group
+                // Start of a new unit group header row
                 if (item.UnitCode !== currentUnitCode) {
                     currentUnitCode = item.UnitCode;
-                    const unitDescription = item.UnitCode === 'INTRO' ? 'Introduction' : item.UnitDescription;
                     html += `
                         <tr class="bg-gray-100 font-bold text-dapa-primary">
-                            <td colspan="5" class="px-4 py-2 border-t-4 border-dapa-primary rounded-t-lg">
+                            <!-- colspan changed from 5 to 4 -->
+                            <td colspan="4" class="px-4 py-2 border-t-4 border-dapa-primary">
                                 ${item.UnitCode === 'INTRO' ? item.UnitDescription : item.UnitCode + ' - ' + item.UnitDescription}
                             </td>
                         </tr>
@@ -276,42 +272,23 @@
 
                 // Assessment Row
                 html += `
-                    <tr class="timetable-row border-b border-gray-200 ${isCompleted ? 'completed-row' : 'bg-white'}" data-unit-code="${item.UnitCode}" data-assessment-name="${item.AssessmentName}">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900">${item.UnitCode === 'INTRO' ? '' : item.UnitCode}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700 max-w-xs">${item.UnitDescription}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700">${item.AssessmentName}</td>
-                        <td class="px-4 py-3 text-sm text-gray-700 max-w-md">${item.AssessmentDescription}</td>
-                        <td class="px-4 py-3 text-center text-sm font-semibold text-dapa-primary">${item.Weeks}</td>
-                        <td class="px-4 py-3 text-center">
-                            <button 
-                                onclick="toggleAssessmentCompletion('${item.UnitCode}', '${item.AssessmentName}')"
-                                class="toggle-complete-btn px-3 py-1 text-xs font-bold rounded-full hover:shadow-lg transition duration-150"
-                                title="Mark as ${isCompleted ? 'Pending' : 'Complete'}"
-                            >
-                                ${isCompleted ? '✓ Completed' : 'Mark Complete'}
-                            </button>
+                    <tr class="timetable-row border-b border-gray-200 bg-white" data-unit-code="${item.UnitCode}" data-assessment-name="${item.AssessmentName}">
+                        <!-- Unit Code (w-1/12) -->
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900 w-1/12">${item.UnitCode === 'INTRO' ? '' : item.UnitCode}</td>
+                        <!-- Unit Description column REMOVED -->
+                        <!-- Assessment (w-1/12) -->
+                        <td class="px-4 py-3 text-sm text-gray-700 w-1/12">${item.AssessmentName}</td>
+                        <!-- Assessment Description (w-4/12 + w-3/12 = w-7/12) -->
+                        <td class="px-4 py-3 text-sm text-gray-700 max-w-md w-7/12">${item.AssessmentDescription}</td>
+                        <!-- Submission Date (w-3/12) -->
+                        <td class="px-4 py-3 text-center text-sm text-dapa-primary font-bold w-3/12">
+                            ${dateDisplay}
                         </td>
                     </tr>
                 `;
             });
 
             container.innerHTML = html;
-            updateProgressSummary(totalTasks, completedTasks);
-        }
-
-        function updateProgressSummary(total, completed) {
-            const percentage = total > 0 ? ((completed / total) * 100).toFixed(0) : 0;
-            const progressRing = document.getElementById('progress-ring');
-            const progressText = document.getElementById('progress-text');
-            const circumference = 2 * Math.PI * 45; // 2 * PI * r (r=45)
-
-            if (progressRing) {
-                progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
-                progressRing.style.strokeDashoffset = circumference - (percentage / 100) * circumference;
-            }
-            if (progressText) {
-                progressText.innerHTML = `<span class="text-3xl font-bold">${percentage}%</span><span class="block text-sm">(${completed}/${total} Tasks)</span>`;
-            }
         }
 
 
@@ -323,6 +300,7 @@
             if (Object.keys(firebaseConfig).length === 0) {
                 console.error("Firebase config is missing.");
                 showMessage("Firebase setup error: Configuration missing.", true);
+                renderTimetable(UNIT_ASSESSMENT_DATA); 
                 return;
             }
 
@@ -331,101 +309,90 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Set persistence to local storage
                 setPersistence(auth, browserLocalPersistence)
                     .catch(error => {
                         console.error("Failed to set persistence:", error.code, error.message);
                     });
 
-                // Initial sign-in attempt
-                if (initialAuthToken) {
-                    signInWithCustomToken(auth, initialAuthToken)
-                        .catch(error => {
-                            console.error("Custom token sign-in failed. Falling back to anonymous.", error);
-                            return signInAnonymously(auth);
+                const signInProcedure = async () => {
+                    if (initialAuthToken) {
+                        return signInWithCustomToken(auth, initialAuthToken)
+                            .catch(error => {
+                                console.error("Custom token sign-in failed. Falling back to anonymous.", error);
+                                return signInAnonymously(auth);
+                            });
+                    } else {
+                        return signInAnonymously(auth).catch(error => {
+                            console.error("Anonymous sign-in failed.", error);
                         });
-                } else {
-                    signInAnonymously(auth).catch(error => {
-                        console.error("Anonymous sign-in failed.", error);
-                    });
-                }
+                    }
+                };
 
-                // Auth state listener
+                // Auth state listener: runs when auth state changes (sign-in/out)
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
                         console.log("Authenticated with userId:", userId);
-                        
-                        // Proceed to check for saved data
+                        document.getElementById('display-user-id').textContent = userId;
+                        // Once authenticated, load data
                         loadStudentDetails();
                     } else {
                         userId = null;
                         console.log("No user signed in. Waiting for sign-in.");
-                        // Render timetable with base data but without progress (or clear progress)
-                        renderTimetable(UNIT_ASSESSMENT_DATA, {}); 
+                        document.getElementById('display-user-id').textContent = 'Anonymous/Not Signed In';
+                        renderTimetable(UNIT_ASSESSMENT_DATA); 
                     }
                 });
+                
+                signInProcedure();
+
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
                 showMessage("Firebase setup error. Check console.", true);
-                renderTimetable(UNIT_ASSESSMENT_DATA, {}); // Show base data even if auth fails
+                renderTimetable(UNIT_ASSESSMENT_DATA); 
             }
         }
 
-        // Start the application flow
+        // Start the application flow on window load
         window.onload = initFirebaseAndAuth;
 
     </script>
 </head>
 <body class="bg-dapa-background p-4 sm:p-8">
 
-    <!-- Message Box -->
+    <!-- Message Box for feedback (instead of alerts) -->
     <div id="message-box"></div>
 
     <div class="timetable-container">
         
-        <!-- Header and Progress Summary -->
+        <!-- Header Section -->
         <div class="header-section mb-6">
             <h1 class="text-3xl font-extrabold text-dapa-primary mb-1">HLT35021 Dental Assisting Timetable</h1>
-            <p class="text-gray-600 mb-6">Track your progress for the Certificate III in Dental Assisting written assessments.</p>
+            <!-- Updated description text -->
+            <p class="text-gray-600 mb-6">Review your estimated submission schedule below based on your course start date.</p>
 
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <!-- Student Details Form -->
-                <form id="student-details-form" class="w-full md:w-3/4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
+                <!-- Student Details Form (now full width) -->
+                <form id="student-details-form" class="w-full grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div class="sm:col-span-1">
                         <label for="student-name" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Name</label>
                         <input type="text" id="student-name" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="Jane Doe">
                     </div>
-                    <div>
+                    <div class="sm:col-span-1">
                         <label for="student-number" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Student Number</label>
                         <input type="text" id="student-number" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="S1234567">
                     </div>
-                    <div>
-                        <label for="course-dates" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Course Dates</label>
-                        <input type="text" id="course-dates" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition" placeholder="Jan 2024 - Dec 2024">
+                    <div class="sm:col-span-1">
+                        <label for="course-start-date" class="block text-xs font-semibold uppercase text-gray-500 mb-1">Course Start Date</label>
+                        <input type="date" id="course-start-date" class="w-full p-2 border border-gray-300 rounded-md focus:ring-dapa-primary focus:border-dapa-primary transition">
                     </div>
-                    <div class="sm:col-span-3 pt-2">
-                         <button type="submit" onclick="saveStudentDetails(event)" class="bg-dapa-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-dapa-accent-hover transition duration-300">
-                            Save Details
+                    <div class="sm:col-span-1 pt-2 flex items-end">
+                         <button type="submit" onclick="saveStudentDetails(event)" class="bg-dapa-primary text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-dapa-accent-hover transition duration-300 w-full">
+                            Save Details & Calculate Dates
                         </button>
                     </div>
                 </form>
 
-                <!-- Progress Ring -->
-                <div class="md:w-1/4 flex justify-center md:justify-end">
-                    <div class="relative w-24 h-24">
-                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                            <!-- Background circle -->
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="#E0E0E0" stroke-width="10"></circle>
-                            <!-- Progress circle -->
-                            <circle id="progress-ring" cx="50" cy="50" r="45" fill="none" stroke="var(--dapa-primary)" stroke-width="10" stroke-linecap="round" style="transition: stroke-dashoffset 0.5s ease;"></circle>
-                        </svg>
-                        <div id="progress-text" class="absolute inset-0 flex flex-col items-center justify-center text-dapa-primary">
-                            <span class="text-3xl font-bold">0%</span>
-                            <span class="block text-sm">(0/45 Tasks)</span>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
         
@@ -435,36 +402,27 @@
                 <thead class="bg-dapa-primary text-white">
                     <tr>
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-1/12">Unit Code</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-3/12">Unit Description</th>
+                        <!-- Unit Description column REMOVED -->
                         <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-1/12">Assessment</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-5/12">Assessment Description</th>
-                        <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-1/12">Weeks</th>
-                        <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-1/12">Status</th>
+                        <!-- Width adjusted from w-4/12 to w-7/12 -->
+                        <th scope="col" class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-7/12">Assessment Description</th>
+                        <th scope="col" class="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-3/12">Submission Date</th>
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
                     <!-- Timetable rows will be rendered here by JavaScript -->
+                    <!-- Updated colspan for loading row -->
                     <tr>
-                        <td colspan="6" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
+                        <td colspan="4" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
                     </tr>
                 </tbody>
             </table>
         </div>
         
-        <p class="text-center text-xs text-gray-400 mt-4">User ID: <span id="display-user-id">Loading...</span></p>
+        <p class="text-center text-xs text-gray-400 mt-4">
+            User ID: <span id="display-user-id">Loading...</span>
+        </p>
 
     </div>
-    <script>
-        // Update user ID display once available
-        window.addEventListener('load', () => {
-            const userIdInterval = setInterval(() => {
-                const userIdElement = document.getElementById('display-user-id');
-                if (typeof userId !== 'undefined' && userIdElement) {
-                    userIdElement.textContent = userId || 'Anonymous/Not Signed In';
-                    clearInterval(userIdInterval);
-                }
-            }, 100);
-        });
-    </script>
 </body>
 </html>
