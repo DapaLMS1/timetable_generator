@@ -152,9 +152,8 @@
         })();
 
         // --- Data Source for Assessments ---
-        // NOTE: The assessment list is ordered chronologically by typical completion order.
         const UNIT_ASSESSMENT_DATA = [
-            // Updated 'Introduction (Mandatory)' to 'Introduction with DAPA Meeting'
+            // Note: The structure is designed to estimate total days/weeks required.
             { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Student Onboarding Activities', AssessmentDescription: 'Completion of required enrolment, system access, and introductory setup.', Weeks: '2 weeks' },
             { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction with DAPA Meeting', Weeks: '0 week' },
             
@@ -171,10 +170,8 @@
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 4', AssessmentDescription: 'Final assessment for Infection Control', Weeks: '0 week' },
             
-            // --- HLTINF002 ---
             { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 5', AssessmentDescription: 'Drying, Inspection, and Packaging', Weeks: '1 week' },
             { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 6', AssessmentDescription: 'Operating the Steriliser (Autoclave)', Weeks: '0 week' },
-            // --- END HLTINF002 ---
             
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 1', AssessmentDescription: 'Foundational Clinic & Communication', Weeks: '5 weeks' },
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
@@ -197,12 +194,10 @@
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid in the Dental Setting', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
             
-            // --- FINAL SECTION ---
             { UnitCode: 'FINISH', UnitDescription: 'Course Completion', AssessmentName: 'Final Task', AssessmentDescription: 'Trainer Assessment and Review', Weeks: '2 weeks' },
         ];
 
         // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
-        // NOTE: Holidays are included for demonstration of date skipping logic
         const PUBLIC_HOLIDAYS = [
             "2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", 
             "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", 
@@ -212,9 +207,9 @@
         // Firestore path helper for student details
         const getStudentDetailsDocRef = (uid) => doc(db, 'artifacts', appId, 'users', uid, 'studentDetails', 'info');
 
-        // State variables (Note: 'startDate' key in Firestore holds the user's desired END date)
+        // State variables
         let studentDetails = { name: '', number: '', startDate: '' }; 
-        let calculatedSchedule = []; // Stores the final, calculated timetable data
+        let calculatedSchedule = []; 
 
         // Utility to show temporary, custom messages (instead of alert())
         const showMessage = (message, isError = false) => {
@@ -227,31 +222,10 @@
             setTimeout(() => { box.innerHTML = ''; }, 5000);
         };
 
-        // --- Date Calculation Helper (REVERSED & DYNAMIC LOGIC) ---
+        // --- Date Calculation Helpers ---
 
         /**
-         * Converts a "X week(s)" string into an integer number of days.
-         * @param {string} weeksStr - The duration string (e.g., "1 week", "2 weeks", "0 week").
-         * @param {number} [compressionFactor=1] - Multiplier for duration (e.g., 0.8 for 20% compression).
-         * @returns {number} The duration in days.
-         */
-        function getDaysFromWeeks(weeksStr, compressionFactor = 1) {
-            const match = weeksStr.match(/(\d+)/);
-            const weeks = match ? parseInt(match[1], 10) : 0;
-            // Apply compression and ensure non-zero tasks still take at least 1 day.
-            let days = Math.round(weeks * 7 * compressionFactor);
-            
-            // Ensure any task with an original duration > 0 is at least 1 day after compression.
-            if (weeks > 0 && days === 0) {
-                days = 1; 
-            }
-            return days;
-        }
-        
-        /**
          * Checks if a date falls on a weekend (Saturday or Sunday).
-         * @param {Date} date - The Date object to check.
-         * @returns {boolean} True if it's a weekend, false otherwise.
          */
         function isWeekend(date) {
             const day = date.getDay();
@@ -260,8 +234,6 @@
 
         /**
          * Checks if a date falls on a representative public holiday.
-         * @param {Date} date - The Date object to check.
-         * @returns {boolean} True if it's a holiday, false otherwise.
          */
         function isHoliday(date) {
             const year = date.getFullYear();
@@ -273,32 +245,10 @@
         }
 
         /**
-         * Finds the previous valid working day (Monday to Friday, non-holiday).
-         * @param {Date} date - The calculated date.
-         * @returns {Date} The previous valid working date.
-         */
-        function getPreviousValidDate(date) {
-            const validDate = new Date(date.getTime()); // Work with a copy
-
-            // Set time to noon to avoid daylight savings/timezone issues when moving date
-            validDate.setHours(12, 0, 0, 0); 
-
-            // Keep subtracting a day until it's a weekday and not a holiday
-            while (isWeekend(validDate) || isHoliday(validDate)) {
-                validDate.setDate(validDate.getDate() - 1);
-            }
-            return validDate;
-        }
-        
-        /**
          * Finds the next valid working day (Monday to Friday, non-holiday).
-         * @param {Date} date - The calculated date.
-         * @returns {Date} The next valid working date.
          */
         function getNextValidDate(date) {
-            const validDate = new Date(date.getTime()); // Work with a copy
-            
-            // Set time to noon to avoid daylight savings/timezone issues when moving date
+            const validDate = new Date(date.getTime()); 
             validDate.setHours(12, 0, 0, 0); 
 
             // Keep adding a day until it's a weekday and not a holiday
@@ -308,33 +258,106 @@
             return validDate;
         }
 
+        /**
+         * Finds the previous valid working day (Monday to Friday, non-holiday).
+         */
+        function getPreviousValidDate(date) {
+            const validDate = new Date(date.getTime()); 
+            validDate.setHours(12, 0, 0, 0); 
+
+            // Keep subtracting a day until it's a weekday and not a holiday
+            while (isWeekend(validDate) || isHoliday(validDate)) {
+                validDate.setDate(validDate.getDate() - 1);
+            }
+            return validDate;
+        }
 
         /**
-         * Subtracts a specified number of weeks (converted to days) from a base Date object, 
-         * then adjusts the date to the previous available weekday. Used for backward scheduling.
+         * Counts the number of working days between two dates (inclusive of end, exclusive of start).
+         * Used to find Total Available Working Days.
+         */
+        function getWorkingDaysBetween(startDate, endDate) {
+            let count = 0;
+            const current = new Date(startDate.getTime());
+            current.setHours(12, 0, 0, 0);
+
+            // Start counting from the day after the start date
+            current.setDate(current.getDate() + 1); 
+
+            while (current <= endDate) {
+                if (!isWeekend(current) && !isHoliday(current)) {
+                    count++;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+            return count;
+        }
+
+        /**
+         * Converts a "X week(s)" string into an integer number of working days, 
+         * applying a dynamic stretch/compression ratio.
+         * @param {string} weeksStr - The duration string (e.g., "1 week").
+         * @param {number} [distributionRatio=1.0] - Ratio: > 1.0 distributes time, < 1.0 compresses time.
+         * @returns {number} The duration in working days.
+         */
+        function getDaysFromWeeks(weeksStr, distributionRatio = 1.0) {
+            const match = weeksStr.match(/(\d+)/);
+            const weeks = match ? parseInt(match[1], 10) : 0;
+            const baseDays = weeks * 5; // Use 5 working days per week
+
+            // Apply the ratio (1.2 for 20% distribution, 0.8 for 20% compression)
+            let days = Math.round(baseDays * distributionRatio);
+            
+            // Ensure any task with an original duration > 0 is at least 1 day after modification.
+            if (baseDays > 0 && days === 0) {
+                days = 1; 
+            }
+            return days;
+        }
+        
+        /**
+         * Calculates the total required working days for the entire schedule (at standard pace).
+         * @returns {number} The total number of working days.
+         */
+        function getTotalRequiredDays() {
+            return UNIT_ASSESSMENT_DATA.reduce((total, item) => {
+                // Use a distributionRatio of 1.0 (standard pace)
+                return total + getDaysFromWeeks(item.Weeks, 1.0);
+            }, 0);
+        }
+
+        /**
+         * Subtracts a specified number of *working* days from a base Date object (backward scheduling).
          * @param {Date} baseDate - The Date object to start from (the next submission date).
          * @param {string} weeksStr - The duration string.
-         * @param {number} [compressionFactor=1] - The factor to multiply weeks by.
-         * @returns {Date} The new Date object after subtracting the time and adjustment.
+         * @param {number} [distributionRatio=1.0] - The factor to multiply weeks by.
+         * @returns {Date} The calculated commencement date.
          */
-        function subtractWeeksFromDate(baseDate, weeksStr, compressionFactor = 1) {
-            const days = getDaysFromWeeks(weeksStr, compressionFactor); // Pass factor
+        function subtractWeeksFromDate(baseDate, weeksStr, distributionRatio = 1.0) {
+            const requiredWorkingDays = getDaysFromWeeks(weeksStr, distributionRatio);
             
             // Start from the day *before* the submission date for the prior task
-            const rawDate = new Date(baseDate.getTime());
-            rawDate.setDate(rawDate.getDate() - 1); // Go back one day
+            let currentDate = getPreviousValidDate(baseDate); 
             
-            // Subtract the required days
-            rawDate.setDate(rawDate.getDate() - days);
+            let daysToSubtract = requiredWorkingDays - 1; // Already accounted for 1 day in getPreviousValidDate
             
-            // Find the nearest previous valid business day
-            return getPreviousValidDate(rawDate);
+            if (requiredWorkingDays === 0) {
+                return currentDate; // 0-week tasks submit on the previous task's submission day
+            }
+
+            while (daysToSubtract > 0) {
+                currentDate.setDate(currentDate.getDate() - 1); // Go back one calendar day
+                if (!isWeekend(currentDate) && !isHoliday(currentDate)) {
+                    daysToSubtract--; // Only count down if it's a working day
+                }
+            }
+            
+            // Ensure the final date is a valid working day
+            return getPreviousValidDate(currentDate);
         }
 
         /**
          * Formats a Date object to DD/MM/YYYY string.
-         * @param {Date} dateObj - The Date object to format.
-         * @returns {string} Formatted date (DD/MM/YYYY).
          */
         function formatDate(dateObj) {
             const day = String(dateObj.getDate()).padStart(2, '0');
@@ -342,24 +365,11 @@
             const year = dateObj.getFullYear();
             return `${day}/${month}/${year}`;
         }
-
-        /**
-         * Formats a Date object to YYYY-MM-DD string (for date input element).
-         * @param {Date} dateObj - The Date object to format.
-         * @returns {string} Formatted date (YYYY-MM-DD).
-         */
-        function formatInputDate(dateObj) {
-            const year = dateObj.getFullYear();
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
         
         // --- Firebase Functions ---
         
         async function loadStudentDetails() {
             if (!isSavingEnabled || !userId || !db) {
-                // If saving is disabled, try to load from a dummy structure or proceed to render
                 renderTimetable(UNIT_ASSESSMENT_DATA); 
                 return;
             }
@@ -375,7 +385,6 @@
                     document.getElementById('student-number').value = studentDetails.number || '';
 
                     if (studentDetails.startDate) {
-                        // Firebase stores the date string in the 'startDate' field (as the anchor/end date)
                         endDateInput.value = studentDetails.startDate; 
                     } else {
                         endDateInput.value = '';
@@ -383,7 +392,6 @@
                 } else {
                     console.log("No student details found. Using defaults/empty.");
                 }
-                // Always render the timetable based on stored details or defaults
                 renderTimetable(UNIT_ASSESSMENT_DATA);
             } catch (e) {
                 console.error("Error loading student details.", e);
@@ -432,15 +440,14 @@
         }
 
         /**
-         * Calculates the backward schedule based on an anchor date and compression factor.
+         * Main function to perform backward scheduling calculation.
          * @param {Array} data - The assessment data.
          * @param {string} courseAnchorDateStr - The desired TPP End Date (YYYY-MM-DD).
-         * @param {number} compressionFactor - The factor to multiply weeks by (1.0 for standard, 0.8 for 20% compression).
-         * @returns {{calculatedSchedule: Array, latestCalculatedStartDate: Date, adjustedCourseEndDate: Date, isStretched: boolean, DurationFactor: number}}
+         * @param {number} distributionRatio - The factor to apply (e.g., 1.0 for standard, 0.8 for compression, 1.2 for distribution).
+         * @returns {{calculatedSchedule: Array, latestCalculatedStartDate: Date, adjustedCourseEndDate: Date, isDistributed: boolean, distributionRatio: number}}
          */
-        function calculateSchedule(data, courseAnchorDateStr, compressionFactor) {
-            // 1. Set the initial anchor date (TPP End Date)
-            // Find the last valid working day (Mon-Fri, non-holiday) on or before the user's selected date.
+        function calculateSchedule(data, courseAnchorDateStr, distributionRatio) {
+            // 1. Find the last valid working day on or before the user's selected date.
             let nextSubmissionDate = getPreviousValidDate(new Date(courseAnchorDateStr));
             const adjustedCourseEndDate = nextSubmissionDate;
 
@@ -450,11 +457,10 @@
             for (const item of reversedData) {
                 const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, Weeks } = item;
                 
-                // The latest submission date for the current task is the date we're currently holding
                 const submissionDate = nextSubmissionDate;
                 
-                // Calculate the commencement date for this task (which is the submission date for the *previous* task)
-                const latestCommencementDate = subtractWeeksFromDate(submissionDate, Weeks, compressionFactor);
+                // Calculate the commencement date for this task 
+                const latestCommencementDate = subtractWeeksFromDate(submissionDate, Weeks, distributionRatio);
                 
                 // Store data
                 tempSchedule.push({
@@ -462,8 +468,8 @@
                     UnitDescription,
                     AssessmentName,
                     AssessmentDescription,
-                    Weeks: item.Weeks, // Store original weeks string
-                    DurationFactor: compressionFactor, // Store factor used
+                    Weeks: item.Weeks, 
+                    distributionRatio: distributionRatio, 
                     SubmissionDate: submissionDate,
                 });
 
@@ -471,20 +477,19 @@
                 nextSubmissionDate = latestCommencementDate;
             }
 
-            // Reverse the calculated schedule back to original order
             const calculatedSchedule = tempSchedule.reverse();
 
-            // Determine the calculated Start Date (The commencement date of the very first task)
+            // The commencement date of the very first task (standard calculation start date)
             const latestCalculatedStartDate = getNextValidDate(nextSubmissionDate);
             
-            // Check for schedule stretching (i.e., if the calculated start date is in the past)
-            const isStretched = latestCalculatedStartDate < TODAY;
+            // Flag indicates if the calculated start date is BEFORE today (i.e., time pressure)
+            const isDistributed = distributionRatio > 1.0; 
             
-            return { calculatedSchedule, latestCalculatedStartDate, adjustedCourseEndDate, isStretched, DurationFactor: compressionFactor };
+            return { calculatedSchedule, latestCalculatedStartDate, adjustedCourseEndDate, isDistributed, distributionRatio };
         }
 
 
-        // --- Rendering Function (REVERSE & STRETCH/EXTENSION LOGIC) ---
+        // --- Rendering Function (Includes new Distribution Logic) ---
         function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
             const calculatedStartDateEl = document.getElementById('display-start-date');
@@ -495,22 +500,21 @@
             const calculatedStartDatePrintEl = document.getElementById('display-start-date-print');
             const durationPrintEl = document.getElementById('display-duration-print');
             
-            const stretchMessage = document.getElementById('stretch-message');
+            const timePressureMessage = document.getElementById('time-pressure-message');
             const aggressiveMessage = document.getElementById('aggressive-message'); 
-            const extensionMessage = document.getElementById('extension-message');
             const criticalWarningMessage = document.getElementById('critical-warning-message'); 
+            const distributedTimeMessage = document.getElementById('distributed-time-message'); // Renamed
 
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
             
             const dateElements = [calculatedStartDateEl, desiredEndDateEl, calculatedStartDatePrintEl, desiredEndDatePrintEl];
 
-
             if (!container) return;
 
-            const courseAnchorDateStr = studentDetails.startDate; // This is the END date now
+            const courseAnchorDateStr = studentDetails.startDate; // TPP End Date
             
-            // Reset header display and stretch message
+            // --- Reset All Elements ---
             calculatedStartDateEl.textContent = 'N/A';
             calculatedStartDatePrintEl.textContent = 'N/A';
             desiredEndDateEl.textContent = 'N/A';
@@ -518,34 +522,31 @@
             durationEl.textContent = 'N/A'; 
             durationPrintEl.textContent = 'N/A';
             
-            // Reset all messages
-            stretchMessage.classList.add('hidden');
+            timePressureMessage.classList.add('hidden');
             aggressiveMessage.classList.add('hidden'); 
-            extensionMessage.classList.add('hidden'); 
             criticalWarningMessage.classList.add('hidden');
+            distributedTimeMessage.classList.add('hidden'); // Reset NEW message
             
-            // Reset date colors to default primary
             dateElements.forEach(el => {
-                el.classList.remove('text-red-600');
+                el.classList.remove('text-red-600', 'text-green-600');
                 el.classList.add('text-dapa-primary');
             });
             
             printInfoName.textContent = studentDetails.name || 'N/A';
             printInfoNumber.textContent = studentDetails.number || 'N/A';
 
-            // Clear previous schedule and display placeholder
             calculatedSchedule = [];
             container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Enter your TPP End Date above to generate the schedule.</td></tr>';
 
             if (!courseAnchorDateStr) {
                 return;
             }
-
-            // --- Dynamic Duration Calculation (Initial Time Span) ---
-            const endDateObj = new Date(courseAnchorDateStr); // Date object of user's input
-            endDateObj.setHours(12, 0, 0, 0); // Normalize to noon
             
-            const timeDiff = endDateObj.getTime() - TODAY.getTime();
+            const endDateObj = new Date(courseAnchorDateStr); 
+            endDateObj.setHours(12, 0, 0, 0); 
+            const actualCourseEndDate = getPreviousValidDate(endDateObj); // Last possible submission day
+
+            const timeDiff = actualCourseEndDate.getTime() - TODAY.getTime();
             let durationWeeks = 0;
             if (timeDiff > 0) {
                 const dayDiff = timeDiff / (1000 * 60 * 60 * 24);
@@ -553,82 +554,77 @@
             }
             const durationDisplay = `${durationWeeks} Weeks Remaining`;
 
-            // Update duration display
             durationEl.textContent = durationDisplay;
             durationPrintEl.textContent = durationDisplay;
 
-            // ** FIX: Always display the fixed date the user entered for TPP End Date header **
-            const formattedOriginalEndDate = formatDate(endDateObj);
-            desiredEndDateEl.textContent = formattedOriginalEndDate;
-            desiredEndDatePrintEl.textContent = formattedOriginalEndDate;
-            // ** END FIX **
-
-            // --- Scheduling Logic ---
-            let finalResult;
-            let isExtendedSchedule = false;
-            let isCriticalStretch = false; // Flag for 80% compression failure
-
-            // 1. Run Standard Calculation (Factor 1.0)
-            const standardResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
+            desiredEndDateEl.textContent = formatDate(endDateObj);
+            desiredEndDatePrintEl.textContent = formatDate(endDateObj);
             
-            // --- Check 1: Is there insufficient time (Start date in the past)? ---
-            if (standardResult.isStretched) {
-                // Try Aggressive Compression (Factor 0.8: 20% time reduction)
+            // --- SCHEDULING LOGIC START ---
+            let finalResult;
+            let distributionRatio = 1.0;
+            let totalRequiredDays = getTotalRequiredDays();
+            let actualStartTime = getNextValidDate(TODAY); // The date the course will realistically start
+
+            // 1. Run Standard Calculation (Ratio 1.0) to see where it starts
+            const standardResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
+            const standardCalculatedStartDate = standardResult.latestCalculatedStartDate;
+
+            // --- Available Days Calculation ---
+            const totalAvailableDays = getWorkingDaysBetween(actualStartTime, actualCourseEndDate);
+            const isStandardScheduleInPast = standardCalculatedStartDate < TODAY;
+            
+            if (totalAvailableDays < totalRequiredDays) {
+                
+                // CASE 1: INSUFFICIENT TIME (Compression needed or Critical stretch)
+
+                // Try Aggressive Compression (Ratio 0.8: 20% time reduction)
                 const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, 0.8);
                 
-                if (aggressiveResult.isStretched) {
-                    // Still stretched even after 20% compression.
-                    // Use standard (uncompressed) timeline, but flag as critical
-                    finalResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
-                    isCriticalStretch = true; 
+                if (aggressiveResult.latestCalculatedStartDate < TODAY) {
+                    // Still stretched even after 20% compression. CRITICAL.
+                    finalResult = standardResult; // Show the original stretched schedule
+                    finalResult.isCriticalStretch = true;
+                    finalResult.distributionRatio = 1.0; // Ensure ratio is correctly marked
+                    
                 } else {
-                    // Success! Schedule works with 20% compression
+                    // Success! Schedule works with 20% compression (Aggressive)
                     finalResult = aggressiveResult;
+                    aggressiveMessage.classList.remove('hidden');
                 }
-
-            // --- Check 2: Is there excess time (Start date in the future)? ---
-            } else if (standardResult.latestCalculatedStartDate > TODAY) {
                 
-                const actualStartTime = getNextValidDate(TODAY); // The start date we *want* (Today or next valid day)
-                const calculatedStartTime = standardResult.latestCalculatedStartDate; // The backward-calculated start date
+            } else if (totalAvailableDays > totalRequiredDays) {
                 
-                // The time buffer is the difference in days to shift the timeline forward
-                const timeDifferenceMs = calculatedStartTime.getTime() - actualStartTime.getTime();
-                const shiftDays = Math.ceil(timeDifferenceMs / (1000 * 60 * 60 * 24));
+                // CASE 2: EXCESS TIME (Distribution needed)
                 
-                if (shiftDays > 0) {
-                    // Use the un-extended schedule from the standard calculation
-                    finalResult = standardResult;
-                    isExtendedSchedule = true;
+                // Calculate the Distribution Ratio (R > 1.0)
+                const requiredVsAvailableRatio = totalAvailableDays / totalRequiredDays;
+                
+                // Only distribute if we have more than 5% extra time
+                if (requiredVsAvailableRatio > 1.05) { 
                     
-                    // The actual start date of the course is today/next valid day
-                    finalResult.latestCalculatedStartDate = actualStartTime;
-
-                    // Calculate the duration of the buffer in weeks for display
-                    const bufferWeeks = Math.ceil(shiftDays / 7);
+                    finalResult = calculateSchedule(data, courseAnchorDateStr, requiredVsAvailableRatio);
+                    finalResult.latestCalculatedStartDate = actualStartTime; // Force start date to TODAY
+                    finalResult.isDistributed = true;
+                    finalResult.distributionRatio = requiredVsAvailableRatio; // Use for display
                     
-                    // Create the synthetic buffer task to represent the extension
-                    const bufferTask = {
-                        UnitCode: 'BUFFER',
-                        UnitDescription: 'Start Buffer / Extension Period',
-                        AssessmentName: 'START BUFFER APPLIED',
-                        AssessmentDescription: `This ${bufferWeeks} week buffer period utilizes the time available before your first assessment must begin to meet the TPP End Date.`,
-                        Weeks: `${bufferWeeks} week${bufferWeeks === 1 ? '' : 's'}`,
-                        DurationFactor: 1.0,
-                        SubmissionDate: calculatedStartTime, // This is the date the actual first assessment must start
-                    };
+                    distributedTimeMessage.querySelector('#spread-percent').textContent = `${Math.round((finalResult.distributionRatio - 1) * 100)}%`;
+                    distributedTimeMessage.classList.remove('hidden');
                     
-                    // Add the buffer task to the front of the schedule
-                    finalResult.calculatedSchedule.unshift(bufferTask);
-
                 } else {
-                    // Start date is exactly today (or next valid day), use standard result
+                    // Small amount of extra time (less than 5%): use standard schedule and treat as normal.
                     finalResult = standardResult;
+                    timePressureMessage.classList.remove('hidden'); // Show standard 'start immediately' message
                 }
-
+                
             } else {
-                // Start date is exactly TODAY or the next valid day
+                
+                // CASE 3: EXACT TIME REQUIRED (Standard pace)
                 finalResult = standardResult;
+                if (isStandardScheduleInPast) {
+                     // If exactly required, but the start date is in the past, still show the pressure message
+                    timePressureMessage.classList.remove('hidden');
+                }
             }
 
             // 4. Update Header Display based on final result
@@ -637,7 +633,7 @@
             
             // 5. Display appropriate message and apply red color if critical
             
-            if (isCriticalStretch) {
+            if (finalResult.isCriticalStretch) {
                 // CRITICAL STRETCH (Maximum compression failed)
                 criticalWarningMessage.classList.remove('hidden');
                 dateElements.forEach(el => {
@@ -645,29 +641,21 @@
                     el.classList.add('text-red-600');
                 });
 
-            } else if (isExtendedSchedule) {
-                // EXTENSION APPLIED (Now uses the buffer task in the table)
-                extensionMessage.classList.remove('hidden');
-            } else if (finalResult.DurationFactor < 1.0) {
-                // ACCELERATED (20% reduction) APPLIED
-                aggressiveMessage.classList.remove('hidden');
-            } else if (finalResult.isStretched) {
-                // STANDARD STRETCH (Fallback for standard calculation failure)
-                stretchMessage.classList.remove('hidden');
-            }
+            } else if (finalResult.distributionRatio === 1.0 && isStandardScheduleInPast) {
+                // Standard pace failed (Start date is in the past)
+                timePressureMessage.classList.remove('hidden');
 
+            } 
 
             // 6. Render the results
-            container.innerHTML = ''; // Clear placeholder
+            container.innerHTML = ''; 
             let lastUnitCode = null;
 
             finalResult.calculatedSchedule.forEach((item) => {
                 const isNewUnit = item.UnitCode !== lastUnitCode;
-                const isBufferTask = item.UnitCode === 'BUFFER'; // Check for the new buffer task
 
                 // --- Handle Unit Header ---
-                if (isNewUnit && !isBufferTask) { 
-                    // Insert the section break row for the new unit
+                if (isNewUnit) { 
                     const unitHeaderRow = document.createElement('tr');
                     unitHeaderRow.className = 'bg-dapa-secondary/50 border-t-8 border-dapa-primary';
                     unitHeaderRow.innerHTML = `
@@ -681,38 +669,10 @@
                 const dateString = formatDate(item.SubmissionDate);
                 const isPastDue = item.SubmissionDate < TODAY;
 
-                // --- Handle Buffer Task Rendering ---
-                if (isBufferTask) {
-                    const bufferStart = formatDate(finalResult.latestCalculatedStartDate);
-                    
-                    const row = document.createElement('tr');
-                    row.className = 'timetable-row bg-blue-100 hover:bg-blue-200 transition duration-150 ease-in-out font-semibold border-b-4 border-blue-300';
-                    
-                    row.innerHTML = `
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-blue-800 w-1/12">
-                            <span class="font-extrabold">${item.AssessmentName}</span>
-                        </td>
-                        <td class="px-4 py-3 text-sm text-blue-800 w-6/12">
-                            ${item.AssessmentDescription}
-                            <p class="text-xs text-blue-600 italic mt-1">Duration: ${item.Weeks}</p>
-                        </td>
-                        <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold text-blue-600 w-4/12">
-                            <p class="text-xs font-medium text-gray-500">Commencement Date:</p>
-                            <span class="text-lg">${bufferStart}</span>
-                            <p class="text-xs font-medium text-gray-500 mt-1">First Task Submission:</p>
-                            <span class="text-lg">${dateString}</span>
-                        </td>
-                    `;
-                    container.appendChild(row);
-                    lastUnitCode = item.UnitCode; 
-                    return; // Skip the rest of the generic rendering for this special task
-                }
-                
                 // --- Handle Standard Task Rendering ---
                 lastUnitCode = item.UnitCode;
 
                 const row = document.createElement('tr');
-                // Highlight row if it is past due
                 const rowClasses = isPastDue 
                     ? 'bg-red-100 hover:bg-red-200' 
                     : 'bg-white hover:bg-dapa-secondary/30';
@@ -720,12 +680,13 @@
                 row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
                 
                 let durationText = item.Weeks;
-                if (item.DurationFactor < 1.0) {
-                    // Show compression only if it was applied
-                    const reductionPercent = Math.round((1 - item.DurationFactor) * 100);
+                
+                if (item.distributionRatio !== 1.0) {
+                    const changePercent = Math.round(Math.abs(item.distributionRatio - 1) * 100);
+                    const action = item.distributionRatio < 1.0 ? 'Compressed' : 'Distributed';
                     
                     // Display specific percentage
-                    durationText = `Compressed (${reductionPercent}% Reduction) from ${item.Weeks}`;
+                    durationText = `${action} (${changePercent}% change) from ${item.Weeks}`;
                 }
                 
                 let submissionCellContent = dateString;
@@ -756,15 +717,13 @@
 
         // --- Initialization Function ---
         async function initApp() {
-            // Attempt to initialize Firebase
             try {
                 if (!db) {
                     const app = initializeApp(firebaseConfig);
                     db = getFirestore(app);
                     auth = getAuth(app);
-                    // setLogLevel('debug'); // Enable for deep debugging
+                    // setLogLevel('debug'); 
 
-                    // Set persistence to local to keep the session
                     await setPersistence(auth, browserLocalPersistence);
 
                     onAuthStateChanged(auth, async (user) => {
@@ -774,12 +733,9 @@
                             console.log("Firebase Auth State Changed: User signed in.", userId);
                             await loadStudentDetails();
                         } else {
-                            // Sign in anonymously if no user is found
                             if (initialAuthToken) {
-                                // Use custom token if available (Canvas environment)
                                 await signInWithCustomToken(auth, initialAuthToken);
                             } else {
-                                // Sign in anonymously otherwise (local testing)
                                 const anonymousUser = await signInAnonymously(auth);
                                 userId = anonymousUser.user.uid;
                                 document.getElementById('display-user-id').textContent = userId;
@@ -794,27 +750,22 @@
                 console.error("Firebase initialization failed. Running in read-only/no-save mode.", e);
                 document.getElementById('display-user-id').textContent = 'N/A (No Save)';
                 showMessage("Saving/Loading is disabled: Firebase connection failed.", true);
-                
-                // Since auth failed, we immediately render the default timetable
                 renderTimetable(UNIT_ASSESSMENT_DATA);
             }
         }
 
         // Attach event listeners and start initialization
         window.addEventListener('load', () => {
-            // Attach form submission handler
             const form = document.getElementById('student-details-form');
             if (form) {
                 form.addEventListener('submit', handleSaveDetails);
             }
             
-            // Attach print button handler
             const printButton = document.getElementById('print-button');
             if (printButton) {
                 printButton.addEventListener('click', handlePrint);
             }
 
-            // Start Firebase setup and data loading
             initApp();
         });
     </script>
@@ -852,15 +803,12 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Calculated Start Date</p>
-                <!-- Color will be applied via JavaScript if critical stretch is detected -->
                 <p id="display-start-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p> 
             </div>
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">TPP End Date</p>
-                <!-- This now displays the fixed date entered by the user -->
                 <p id="display-end-date" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
             </div>
-            <!-- DURATION BLOCK -->
             <div class="p-4 bg-white rounded-lg shadow-md border-b-4 border-dapa-secondary">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</p>
                 <p id="display-duration" class="text-2xl font-extrabold text-dapa-primary mt-1">N/A</p>
@@ -871,14 +819,14 @@
         <div class="p-4 bg-red-600 rounded-lg shadow-md border-b-4 border-red-800 text-white hidden" id="critical-warning-message">
             <p class="text-xs font-semibold uppercase tracking-wider">CRITICAL WARNING: TPP END DATE UNATTAINABLE</p>
             <p class="text-sm font-medium mt-1">
-                The standard (uncompressed) timeline has been generated to show **past due dates**. Your requested TPP End Date cannot be met without a formal course extension.
+                The standard timeline has been generated to show **past due dates**. Your requested TPP End Date cannot be met even with maximum acceleration.
             </p>
         </div>
         
-        <!-- Schedule Stretch Warning (Standard compression failed, but not critically) -->
-        <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="stretch-message">
-            <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Warning: Start Date is Before Today</p>
-            <p class="text-sm font-medium text-red-800 mt-1">To meet your end date using the standard timeline, you must start immediately. Consider the accelerated compression timeline.</p>
+        <!-- Time Pressure Warning (Standard pace failed, but not critically) -->
+        <div class="p-4 bg-red-100 rounded-lg shadow-md border-b-4 border-red-500 hidden" id="time-pressure-message">
+            <p class="text-xs font-semibold text-red-700 uppercase tracking-wider">Warning: Time Pressure Applied</p>
+            <p class="text-sm font-medium text-red-800 mt-1">The schedule below uses the standard pace, but requires you to start immediately (or began prior to today) to meet the TPP End Date.</p>
         </div>
         
         <!-- Aggressive Compression Warning (Now reflects 20% reduction) -->
@@ -887,10 +835,10 @@
             <p class="text-sm font-medium text-yellow-800 mt-1">The schedule below uses a <strong>20% time reduction</strong> to meet your desired end date. This timeline is faster than recommended.</p>
         </div>
         
-        <!-- Extension Applied Message (Used when buffer task is added) -->
-        <div class="p-4 bg-blue-100 rounded-lg shadow-md border-b-4 border-blue-500 hidden" id="extension-message">
-            <p class="text-xs font-semibold text-blue-700 uppercase tracking-wider">BUFFER PERIOD DETECTED</p>
-            <p class="text-sm font-medium text-blue-800 mt-1">There is more time available. Extra time has been added at the beginning of the timetable to utilize all available time until your first assessment must begin.</p>
+        <!-- Time Distributed Message (Updated from Stretched) -->
+        <div class="p-4 bg-green-100 rounded-lg shadow-md border-b-4 border-green-500 hidden" id="distributed-time-message">
+            <p class="text-xs font-semibold text-green-700 uppercase tracking-wider">SCHEDULE FULLY DISTRIBUTED</p>
+            <p class="text-sm font-medium text-green-800 mt-1">You have more time available. This schedule has been redistributed by <span id="spread-percent"></span> to spread the extra time evenly across all tasks, providing a more relaxed pace.</p>
         </div>
 
         <!-- Print Info Block (Shown only on Print) -->
