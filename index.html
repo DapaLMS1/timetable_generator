@@ -114,14 +114,29 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
-        // Global variables provided by the Canvas environment
+        // =========================================================================
+        // --- CUSTOM CONFIGURATION FOR LOCAL RUNNING (To fix "Configuration missing") ---
+        // These placeholders allow the app to run outside the canvas environment.
+        // NOTE: Saving/Loading will fail with this dummy config unless replaced.
+        // =========================================================================
+        const DUMMY_FIREBASE_CONFIG = {
+            apiKey: "DUMMY_API_KEY",
+            authDomain: "DUMMY_PROJECT_ID.firebaseapp.com",
+            projectId: "DUMMY_PROJECT_ID",
+            storageBucket: "DUMMY_PROJECT_ID.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:DUMMY_WEB_APP_ID"
+        };
+        
+        // Global variables provided by the Canvas environment (with local fallbacks)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : DUMMY_FIREBASE_CONFIG;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         let db;
         let auth;
         let userId = null;
+        let isSavingEnabled = true;
 
         // Normalize Today's Date to midday for clean comparison (to avoid timezone issues at midnight)
         const TODAY = (() => {
@@ -315,7 +330,11 @@
         // --- Firebase Functions ---
         
         async function loadStudentDetails() {
-            if (!userId || !db) return;
+            if (!isSavingEnabled || !userId || !db) {
+                // If saving is disabled, try to load from a dummy structure or proceed to render
+                renderTimetable(UNIT_ASSESSMENT_DATA); 
+                return;
+            }
 
             try {
                 const docSnap = await getDoc(getStudentDetailsDocRef(userId));
@@ -348,10 +367,6 @@
 
         async function handleSaveDetails(e) {
             e.preventDefault();
-            if (!userId || !db) { 
-                showMessage("Not authenticated. Cannot save."); 
-                return;
-            }
             
             const courseAnchorDate = document.getElementById('course-end-date').value.trim();
             
@@ -366,10 +381,16 @@
                 startDate: courseAnchorDate, // Store the anchor date (End Date) in the 'startDate' field
             };
             
+            studentDetails = newDetails;
+            renderTimetable(UNIT_ASSESSMENT_DATA);
+            
+            if (!isSavingEnabled || !userId || !db) { 
+                showMessage("Calculation complete. Cannot save data with dummy Firebase configuration.", true); 
+                return;
+            }
+            
             try {
                 await setDoc(getStudentDetailsDocRef(userId), newDetails, { merge: true });
-                studentDetails = newDetails;
-                renderTimetable(UNIT_ASSESSMENT_DATA);
                 showMessage("Student details saved successfully!");
             } catch (e) {
                 console.error("Error saving student details:", e);
@@ -390,6 +411,7 @@
             const container = document.getElementById('timetable-body');
             const calculatedStartDateEl = document.getElementById('display-start-date'); 
             const desiredEndDateEl = document.getElementById('display-end-date');
+            const desiredEndDatePrintEl = document.getElementById('display-end-date-print');
             const stretchMessage = document.getElementById('stretch-message');
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
@@ -404,6 +426,7 @@
             // Reset header display and stretch message
             calculatedStartDateEl.textContent = 'N/A';
             desiredEndDateEl.textContent = 'N/A';
+            desiredEndDatePrintEl.textContent = 'N/A';
             stretchMessage.classList.add('hidden');
             printInfoName.textContent = studentDetails.name || 'N/A';
             printInfoNumber.textContent = studentDetails.number || 'N/A';
@@ -427,7 +450,9 @@
 
             // The final assessment must be submitted on or before the adjusted end date
             adjustedCourseEndDate = getPreviousValidDate(currentSubmissionDate);
-            desiredEndDateEl.textContent = formatDate(adjustedCourseEndDate);
+            const endDateFormatted = formatDate(adjustedCourseEndDate);
+            desiredEndDateEl.textContent = endDateFormatted;
+            desiredEndDatePrintEl.textContent = endDateFormatted;
 
             // --- SCENARIO 1: BACKWARD CALCULATION (Default) ---
             
@@ -602,12 +627,21 @@
         function initFirebaseAndAuth() {
             setLogLevel('debug'); // Enable detailed Firebase logging
             
-            if (Object.keys(firebaseConfig).length === 0) {
-                console.error("Firebase config is missing.");
-                showMessage("Firebase setup error: Configuration missing.", true);
+            if (firebaseConfig.apiKey === "DUMMY_API_KEY") {
+                console.warn("Using DUMMY Firebase configuration. Data will not be saved or loaded.");
+                showMessage("Running with DUMMY config. Data saving/loading is disabled.", true);
+                isSavingEnabled = false;
+                userId = crypto.randomUUID(); 
+                document.getElementById('display-user-id').textContent = userId + ' (Local/Dummy)';
                 renderTimetable(UNIT_ASSESSMENT_DATA); 
+                
+                // Proceed to attach event listeners even without full Firebase
+                attachEventListeners();
                 return;
             }
+            
+            // If configuration is valid (not dummy), proceed with Firebase init
+            isSavingEnabled = true;
 
             try {
                 const app = initializeApp(firebaseConfig);
@@ -639,7 +673,6 @@
                     } else {
                         userId = null;
                         console.log("No user signed in. Waiting for sign-in.");
-                        // Generate a temporary unique ID for anonymous users if Firebase auth failed/is not ready
                         userId = crypto.randomUUID(); 
                         document.getElementById('display-user-id').textContent = userId + ' (Anonymous)';
                         renderTimetable(UNIT_ASSESSMENT_DATA); 
@@ -650,25 +683,28 @@
                 signInProcedure();
                 
                 // Attach event listeners
-                const form = document.getElementById('student-details-form');
-                if (form) {
-                    form.addEventListener('submit', handleSaveDetails);
-                } else {
-                    console.error("Form element 'student-details-form' not found.");
-                }
-                
-                const printBtn = document.getElementById('print-button');
-                if (printBtn) {
-                    printBtn.addEventListener('click', handlePrint);
-                } else {
-                    console.error("Print button 'print-button' not found.");
-                }
-
+                attachEventListeners();
 
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
                 showMessage("Firebase setup error. Check console.", true);
                 renderTimetable(UNIT_ASSESSMENT_DATA); 
+            }
+        }
+        
+        function attachEventListeners() {
+            const form = document.getElementById('student-details-form');
+            if (form) {
+                form.addEventListener('submit', handleSaveDetails);
+            } else {
+                console.error("Form element 'student-details-form' not found.");
+            }
+            
+            const printBtn = document.getElementById('print-button');
+            if (printBtn) {
+                printBtn.addEventListener('click', handlePrint);
+            } else {
+                console.error("Print button 'print-button' not found.");
             }
         }
 
