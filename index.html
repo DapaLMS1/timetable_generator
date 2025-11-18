@@ -154,10 +154,10 @@
         // --- Data Source for Assessments ---
         // NOTE: The assessment list is ordered chronologically by typical completion order.
         const UNIT_ASSESSMENT_DATA = [
-            // NEW TASK: Student Onboarding Activities (2 Weeks)
-            { UnitCode: 'ONBOARD', UnitDescription: 'Course Setup', AssessmentName: 'Student Onboarding Activities', AssessmentDescription: 'Completion of required enrolment, system access, and introductory setup.', Weeks: '2 weeks' },
+            // Updated 'Introduction (Mandatory)' to 'Introduction with DAPA Meeting'
+            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Student Onboarding Activities', AssessmentDescription: 'Completion of required enrolment, system access, and introductory setup.', Weeks: '2 weeks' },
+            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction with DAPA Meeting', Weeks: '0 week' },
             
-            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction (Mandatory)', Weeks: '0 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 1', AssessmentDescription: 'The Dental Health Team', Weeks: '1 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 2', AssessmentDescription: 'Ethics and Jurisprudence', Weeks: '1 week' },
             { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 3', AssessmentDescription: 'Psychology for Dental Assistants', Weeks: '0 week' },
@@ -168,7 +168,7 @@
             { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 3', AssessmentDescription: 'Participate in WHS activities and follow emergency procedures', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate understanding of infection control principles', Weeks: '1 week' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 2', AssessmentDescription: 'Identify infection risks and select/use Personal Protective Equipment (PPE)', Weeks: '1 week' },
-            { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
+            { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
             { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 4', AssessmentDescription: 'Final assessment for Infection Control', Weeks: '0 week' },
             
             // --- HLTINF002 ---
@@ -178,7 +178,7 @@
             
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 1', AssessmentDescription: 'Foundational Clinic & Communication', Weeks: '5 weeks' },
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitCode: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
             { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
@@ -197,8 +197,8 @@
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
             { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid in the Dental Setting', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
             
-            // --- NEW FINAL SECTION ---
-            { UnitCode: 'COURSE_COMP', UnitDescription: 'Course Completion', AssessmentName: 'Final Task', AssessmentDescription: 'Trainer Assessment and Review', Weeks: '2 weeks' },
+            // --- FINAL SECTION ---
+            { UnitCode: 'FINISH', UnitDescription: 'Course Completion', AssessmentName: 'Final Task', AssessmentDescription: 'Trainer Assessment and Review', Weeks: '2 weeks' },
         ];
 
         // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
@@ -379,7 +379,7 @@
                 // Always render the timetable based on stored details or defaults
                 renderTimetable(UNIT_ASSESSMENT_DATA);
             } catch (e) {
-                console.error("Error loading student details:", e);
+                console.error("Error loading student details.", e);
                 showMessage("Failed to load student details.", true);
                 renderTimetable(UNIT_ASSESSMENT_DATA);
             }
