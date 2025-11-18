@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HLT35021 DAPA Assessment Timetable</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         /* Define DAPA Color Palette */
@@ -62,7 +60,6 @@
             }
         }
     </style>
-    <!-- Firebase Imports -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -250,7 +247,6 @@
         window.onload = initializeFirebase;
     </script>
 
-    <!-- Main Application Logic (Must be available globally) -->
     <script>
         // Global variable to hold the data loaded from CSV
         let courseUnits = []; 
@@ -270,6 +266,9 @@
             // 2027 (Partial)
             "01-01-2027", "01-26-2027",
         ];
+        
+        // Define constant for approximation, used for status box logic
+        const WORKING_DAYS_PER_WEEK = 5; 
 
         /**
          * Loads and parses timetable data from the CSV file.
@@ -289,26 +288,31 @@
                 const unitsMap = new Map();
                 
                 for (const line of lines) {
-                    // Simple split by comma. Assumes no commas in descriptions/titles.
-                    const [unit, title, description, weeksStr] = line.split(',');
-                    const weeks = parseFloat(weeksStr);
+                    // New columns: Unit Code, Unit Description, Assessment, Assessment Description, Days Required
+                    const [unitCode, unitTitle, assessmentName, assessmentDescription, daysStr] = line.split(',');
+                    const daysRequired = parseInt(daysStr); // New: parse days
                     
-                    if (unit && description && !isNaN(weeks)) {
-                        const unitKey = unit.trim();
+                    // Check for minimum required data: Unit Code, Assessment Description, and a valid number of Days Required
+                    if (unitCode && assessmentDescription && !isNaN(daysRequired) && daysRequired > 0) { 
+                        const unitKey = unitCode.trim();
                         if (!unitsMap.has(unitKey)) {
                             unitsMap.set(unitKey, {
                                 unit: unitKey,
-                                title: title ? title.trim() : 'N/A',
+                                title: unitTitle ? unitTitle.trim() : 'N/A', // Use Unit Description as title
                                 tasks: []
                             });
                         }
                         
                         const unitData = unitsMap.get(unitKey);
-                        // Add the task, generating a simple ID
+                        
+                        // Combine Assessment Name and Assessment Description for a full description
+                        const fullDescription = `${assessmentName.trim()}${assessmentDescription.trim() ? ': ' + assessmentDescription.trim() : ''}`;
+
+                        // Add the task
                         unitData.tasks.push({
                             id: `${unitKey.toLowerCase()}_${unitData.tasks.length + 1}`,
-                            description: description.trim(),
-                            weeks: weeks
+                            description: fullDescription,
+                            days: daysRequired // New: save days
                         });
                     }
                 }
@@ -436,8 +440,8 @@
                 return;
             }
 
-            // Define constants
-            const WORKING_DAYS_PER_WEEK = 5;
+            // Define constant for approximation, used for status box logic
+            const WORKING_DAYS_PER_WEEK = 5; 
             // The current date (used for comparison)
             const currentDate = new Date();
             currentDate.setHours(0, 0, 0, 0); // Normalize to start of day
@@ -447,20 +451,22 @@
             tppEndDate.setDate(tppEndDate.getDate() + 1); // Move to the day after, so all work must be completed before it
             
             // --- 1. CALCULATE TOTAL REQUIRED WORKING DAYS ---
-            const totalRequiredWeeks = assessmentUnits.reduce((acc, unit) => {
-                return acc + unit.tasks.reduce((taskAcc, task) => taskAcc + task.weeks, 0);
+            // NEW: Sum the 'days' property directly from the imported data
+            const totalRequiredWorkingDays = assessmentUnits.reduce((acc, unit) => {
+                return acc + unit.tasks.reduce((taskAcc, task) => taskAcc + task.days, 0);
             }, 0);
-            const totalRequiredWorkingDays = Math.ceil(totalRequiredWeeks * WORKING_DAYS_PER_WEEK);
+            
+            // Calculate the required weeks for the status box comparison (using the 5-day approximation)
+            const totalRequiredWeeks = totalRequiredWorkingDays / WORKING_DAYS_PER_WEEK;
             
             // --- 2. CALCULATE ACTUAL AVAILABLE WORKING DAYS ---
             let availableWorkingDays = calculateWorkingDays(currentDate, tppEndDate);
-            let availableWeeks = Math.floor(availableWorkingDays / WORKING_DAYS_PER_WEEK);
-
+            let totalAvailableWeeks = Math.floor(availableWorkingDays / WORKING_DAYS_PER_WEEK); // Renamed from availableWeeks
+            
             // --- 3. DETERMINE PACE ADJUSTMENT ---
             let distributionRatio = 1.0;
             let statusMessage = '';
             let statusClass = '';
-            let totalAvailableWeeks = Math.floor(availableWorkingDays / WORKING_DAYS_PER_WEEK);
 
             if (totalAvailableWeeks > totalRequiredWeeks) {
                 // Time Surplus: Spread the work out
@@ -530,7 +536,8 @@
                     const task = unit.tasks[j];
                     
                     // 1. Calculate required working days for this task, adjusted by the distribution ratio
-                    const originalWorkingDays = Math.ceil(task.weeks * WORKING_DAYS_PER_WEEK);
+                    // NEW: Use imported days directly
+                    const originalWorkingDays = task.days; 
                     const adjustedWorkingDays = Math.max(1, Math.ceil(originalWorkingDays / distributionRatio));
 
                     // 2. Subtract the required time from the current end date
@@ -553,11 +560,11 @@
                     // Append the task to the unit's list
                     unitItems.push({
                         unit: unit.unit,
-                        description: task.description, // Task description is now just the description
+                        description: task.description, // Task description
                         date: formattedDate,
                         rowClass: rowClass,
                         descriptionDetail: descriptionDetail,
-                        originalWeeks: task.weeks,
+                        originalDays: originalWorkingDays, // NEW: Store original days
                         adjustedDays: adjustedWorkingDays
                     });
                 }
@@ -634,12 +641,15 @@
                         </tr>
                     `;
                 } else {
+                    // Approximate weeks for display purposes
+                    const originalWeeks = (item.originalDays / WORKING_DAYS_PER_WEEK).toFixed(1);
+
                     return `
                         <tr class="${item.rowClass}">
                             <td class="px-6 py-2 whitespace-nowrap text-sm font-medium">${item.unit}</td>
                             <td class="px-6 py-2 whitespace-normal text-sm">
                                 <strong class="text-gray-700">${item.description}</strong>
-                                <span class="text-xs text-gray-500"> (Days: ${item.adjustedDays}, Weeks: ${item.originalWeeks})</span>
+                                <span class="text-xs text-gray-500"> (Days: ${item.adjustedDays}, Weeks: ${originalWeeks})</span>
                                 ${item.descriptionDetail}
                             </td>
                             <td class="px-6 py-2 whitespace-nowrap text-sm font-medium">${item.date}</td>
@@ -655,7 +665,7 @@
                 </tr>
             `;
         }
-
+    
         // --- EVENT LISTENERS AND HELPERS ---
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -703,30 +713,25 @@
 
     <div class="max-w-6xl mx-auto">
         
-        <!-- Header -->
         <header class="text-center mb-8">
             <h1 class="text-3xl sm:text-4xl font-extrabold text-dapa-primary mb-2">HLT35021 Dental Assisting Timetable</h1>
             <p class="text-dapa-primary/80 text-lg">Backward-Scheduled Assessment Plan</p>
              <p id="user-id-display" class="text-xs text-gray-400 mt-2 hidden">User ID: N/A</p>
         </header>
 
-        <!-- Input Form and Controls -->
         <div class="card p-6 mb-6 no-print">
             <form id="timetable-form" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Student Name -->
                     <div>
                         <label for="student-name" class="block text-sm font-medium text-gray-700">Student Name</label>
                         <input type="text" id="student-name" name="student-name" placeholder="Enter your full name"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border">
                     </div>
-                    <!-- Student Number -->
                     <div>
                         <label for="student-number" class="block text-sm font-medium text-gray-700">Student Number</label>
                         <input type="text" id="student-number" name="student-number" placeholder="Enter student ID"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border">
                     </div>
-                    <!-- TPP End Date -->
                     <div>
                         <label for="tpp-end-date" class="block text-sm font-medium text-gray-700">TPP End Date (Target Submission)</label>
                         <input type="date" id="tpp-end-date" name="tpp-end-date" required
@@ -746,19 +751,15 @@
             </form>
         </div>
         
-        <!-- Timetable Summary/Status -->
         <div id="info-box" class="mb-6">
-            <!-- Summary stats will be rendered here -->
             <div class="p-4 card bg-white text-sm">
                 <p class="text-center text-gray-500">Enter your details and TPP End Date above to generate the schedule.</p>
             </div>
         </div>
 
         <div id="status-box" class="mb-6">
-            <!-- Status message will be rendered here -->
-        </div>
+            </div>
 
-        <!-- Timetable Table -->
         <div class="card overflow-x-auto shadow-xl">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-dapa-secondary/50">
@@ -775,7 +776,6 @@
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
-                    <!-- Timetable rows will be rendered here by JavaScript -->
                     <tr>
                         <td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
                     </tr>
@@ -783,7 +783,6 @@
             </table>
         </div>
         
-        <!-- Action Buttons -->
         <div class="flex justify-center mt-6 no-print" id="print-button-container">
             <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-2">
