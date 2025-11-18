@@ -112,38 +112,24 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
         let firebaseConfig = {};
-        try {
-            // Safer parsing of the config string
-            const configString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
-            firebaseConfig = JSON.parse(configString);
-if (Object.keys(firebaseConfig).length === 0) {
-            // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M",
-  authDomain: "dapa-firestore.firebaseapp.com",
-  projectId: "dapa-firestore",
-  storageBucket: "dapa-firestore.firebasestorage.app",
-  messagingSenderId: "718243284686",
-  appId: "1:718243284686:web:4345e933c66d888506b29f",
-  measurementId: "G-C942FWNP8W"
-};
-}
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-
-            
-        } catch(e) {
-            console.error("Error parsing __firebase_config:", e);
-        }
+        // -------------------------------------------------------------------------
+        // 👇 CRITICAL: Your hardcoded Firebase Configuration (This is the fixed part!)
+        // -------------------------------------------------------------------------
+        // --- START CONFIG BLOCK ---
+        firebaseConfig = {
+            apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M",
+            authDomain: "dapa-firestore.firebaseapp.com",
+            projectId: "dapa-firestore",
+            storageBucket: "dapa-firestore.firebasestorage.app",
+            messagingSenderId: "718243284686",
+            appId: "1:718243284686:web:4345e933c66d888506b29f",
+            measurementId: "G-C942FWNP8W"
+        };
+        // --- END CONFIG BLOCK ---
+        // -------------------------------------------------------------------------
+        // 👆 CRITICAL: End of Configuration
+        // -------------------------------------------------------------------------
         
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
@@ -152,7 +138,7 @@ const analytics = getAnalytics(app);
         // --- CORE FUNCTIONS ---
         
         /**
-         * Loads mock data for the timetable when Firebase configuration is missing.
+         * Loads mock data for the timetable when Firebase configuration is missing (only used if firebaseConfig is empty).
          */
         function loadMockData() {
             console.warn("Using mock data as Firebase Configuration is missing.");
@@ -256,6 +242,9 @@ const analytics = getAnalytics(app);
                 setLogLevel('debug');
                 console.log("--- STARTING FIREBASE INITIALIZATION ---");
                 console.log("App ID:", appId);
+                // Log the initialAuthToken state for debugging the custom token issue
+                console.log("Initial Auth Token State:", initialAuthToken ? "Present" : "Not Present/Null");
+
 
                 if (Object.keys(firebaseConfig).length === 0) {
                     const errMsg = "Firebase Configuration is missing. Firestore persistence is disabled.";
@@ -276,10 +265,23 @@ const analytics = getAnalytics(app);
                 auth = getAuth(app);
 
                 // 2. Authentication
+                let signInSuccessful = false;
+
+                // 2a. Attempt Custom Token sign-in if the token is available
                 if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    console.log(`Attempting sign-in with custom token...`);
-                } else {
+                    try {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log(`Attempting sign-in with custom token...`);
+                        signInSuccessful = true;
+                    } catch (authError) {
+                        // Catch the specific error (auth/configuration-not-found, etc.) and fall back
+                        console.warn(`⚠️ Custom Token Sign-in Failed (Code: ${authError.code || 'Unknown'}). Falling back to Anonymous Sign-in.`, authError.message);
+                        // Do not re-throw, proceed to anonymous sign-in attempt
+                    }
+                }
+
+                // 2b. Fallback to Anonymous Sign-in if custom sign-in was not attempted or failed
+                if (!signInSuccessful) {
                     await signInAnonymously(auth);
                     console.log(`Attempting anonymous sign-in...`);
                 }
