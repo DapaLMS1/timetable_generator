@@ -210,6 +210,7 @@
             const studentNameInput = document.getElementById('student-name');
             const studentNumberInput = document.getElementById('student-number');
             const tppEndDateInput = document.getElementById('tpp-end-date');
+            const timetableBody = document.getElementById('timetable-body');
             
             // Populate form fields with loaded data
             if (savedDetails.name) studentNameInput.value = savedDetails.name;
@@ -217,11 +218,17 @@
             if (savedDetails.tppEndDate) tppEndDateInput.value = savedDetails.tppEndDate;
 
             // Update timetable based on load result
-            if (!loadSuccess || window.courseUnits.length === 0) {
-                 document.getElementById('timetable-body').innerHTML = `
+            if (!loadSuccess) {
+                 // Error message already set inside loadTimetableData if it failed
+                 return;
+            }
+            
+            // If data loaded but is empty
+            if (window.courseUnits.length === 0) {
+                 timetableBody.innerHTML = `
                     <tr>
                         <td colspan="3" class="p-8 text-center text-red-500">
-                            Assessment data failed to load or is empty. Please check the CSV file content and format.
+                            Assessment data loaded but is empty. Please ensure your CSV has valid rows after the header.
                         </td>
                     </tr>
                 `;
@@ -230,10 +237,11 @@
                 // Generate initial schedule if TPP End Date is set
                 document.getElementById('generate-button').click();
             } else {
-                 document.getElementById('timetable-body').innerHTML = `
+                 timetableBody.innerHTML = `
                     <tr>
                         <td colspan="3" class="p-8 text-center text-gray-500">
-                            Please enter your **TPP End Date** and click "Generate Timetable" to begin.
+                            <p>✅ Assessment data loaded successfully (${window.courseUnits.length} units).</p>
+                            <p class="mt-2">Please enter your **TPP End Date** and click "Generate Timetable" to begin.</p>
                         </td>
                     </tr>
                 `;
@@ -278,26 +286,58 @@
          */
         async function loadTimetableData() {
             const timetableBody = document.getElementById('timetable-body');
+            const diagnosticsContainer = document.getElementById('error-diagnostics');
+            const csvFilename = 'TIMETABLE_DATA.csv';
+            
+            diagnosticsContainer.innerHTML = ''; // Clear previous diagnostics
             window.courseUnits = []; // Reset global data
             
             try {
-                // CHANGED: Using the requested UPPERCASE filename for fetch
-                const response = await fetch('TIMETABLE_DATA.csv');
+                // --- STEP 1: Fetch the file ---
+                const response = await fetch(csvFilename);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} (${response.statusText}) - Could not find or access the CSV file. Please check the filename case (must be TIMETABLE_DATA.csv).`);
+                    const errorMsg = `HTTP Error ${response.status} (${response.statusText}). Could not find or access the CSV file.`;
+                    console.error("CRITICAL FETCH ERROR:", errorMsg, { filename: csvFilename });
+                    
+                    diagnosticsContainer.innerHTML = `
+                        <div class="p-4 rounded-lg shadow-md border-b-4 bg-red-100 border-red-500 text-red-700 mb-6">
+                            <p class="text-lg font-bold">CRITICAL ERROR: Failed to Load Timetable Data</p>
+                            <p class="mt-1">
+                                The file **${csvFilename}** could not be loaded. Please check:
+                                <ul class="list-disc list-inside mt-2 text-sm space-y-1">
+                                    <li>The file exists in the same folder as index.html.</li>
+                                    <li>The **filename is exactly** <strong class="text-red-800">${csvFilename}</strong> (case-sensitive!).</li>
+                                </ul>
+                            </p>
+                            <p class="mt-2 text-xs">Technical Details: ${errorMsg}</p>
+                        </div>
+                    `;
+                    timetableBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-700 font-bold">Data failed to load. See Critical Error message above.</td></tr>`;
+                    return false;
                 }
+                
                 const csvText = await response.text();
                 // Filter out empty lines, whitespace-only lines, and comment lines
                 const lines = csvText.trim().split('\n')
                     .map(line => line.trim())
                     .filter(line => line.length > 0 && !line.startsWith('#'));
                 
-                if (lines.length === 0) {
+                if (lines.length <= 1) {
                      console.warn("CSV file is empty or contains only headers/comments.");
+                     timetableBody.innerHTML = `
+                        <tr>
+                            <td colspan="3" class="p-8 text-center text-gray-500">
+                                <p class="font-bold">✅ Data loaded, but content is empty.</p>
+                                <p class="mt-1 text-sm">Please ensure your ${csvFilename} file contains unit and assessment data below the header row.</p>
+                            </td>
+                        </tr>
+                    `;
                      return false;
                 }
                 
-                // Use the first line as the header (we still shift it off later)
+                // --- STEP 2: Parse and Validate Data ---
+                // Use the first line as the header, but discard it after counting columns
                 const header = lines.shift(); 
                 const expectedColumnCount = 5;
                 const unitsMap = new Map();
@@ -306,19 +346,17 @@
                 
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
-                    // Split the line, ensuring it handles commas within quotes if possible, 
-                    // but for simplicity, we rely on standard comma splitting and trimming.
+                    // Simple split by comma. We assume no commas inside quoted fields for simplicity.
                     const columns = line.split(',');
 
-                    if (columns.length !== expectedColumnCount) {
+                    if (columns.length < expectedColumnCount) {
                         const errorMsg = `Line ${i + 2} skipped: Expected ${expectedColumnCount} columns, got ${columns.length}.`;
-                        console.error(errorMsg, {line: line});
                         errorLines.push(errorMsg);
                         continue;
                     }
                     
-                    // Assign and trim values
-                    const [unitCode, unitTitle, assessmentName, assessmentDescription, daysStr] = columns.map(c => c.trim());
+                    // Assign and trim values (only take the first 5 columns)
+                    const [unitCode, unitTitle, assessmentName, assessmentDescription, daysStr] = columns.slice(0, 5).map(c => c.trim());
                     const daysRequired = parseInt(daysStr); 
                     
                     // Data validation checks
@@ -326,8 +364,8 @@
                         errorLines.push(`Line ${i + 2} skipped: Missing Unit Code.`);
                         continue;
                     }
-                    if (!assessmentDescription) {
-                        errorLines.push(`Line ${i + 2} skipped: Missing Assessment Description.`);
+                    if (!assessmentDescription && !assessmentName) {
+                        errorLines.push(`Line ${i + 2} skipped: Missing Assessment Name and Description.`);
                         continue;
                     }
                     if (isNaN(daysRequired) || daysRequired <= 0) {
@@ -349,7 +387,7 @@
                     const unitData = unitsMap.get(unitKey);
                     
                     // Combine Assessment Name and Assessment Description
-                    const fullDescription = `${assessmentName}${assessmentDescription ? ': ' + assessmentDescription : ''}`;
+                    const fullDescription = `${assessmentName || ''}${assessmentDescription ? ': ' + assessmentDescription : ''}`;
 
                     // Add the task
                     unitData.tasks.push({
@@ -364,27 +402,43 @@
                 window.courseUnits = Array.from(unitsMap.values());
                 console.log(`Timetable data loaded successfully. Total successful tasks: ${successfulLines}.`);
                 
+                // --- STEP 3: Display Parsing Diagnostics (if any errors occurred) ---
                 if (errorLines.length > 0) {
-                     console.warn(`Partial load complete, but ${errorLines.length} line(s) failed to parse:`, errorLines);
+                     diagnosticsContainer.innerHTML = `
+                        <div class="p-4 rounded-lg shadow-md border-b-4 bg-yellow-100 border-yellow-500 text-yellow-700 mb-6">
+                            <p class="text-lg font-bold">Data Parsing Warnings (${errorLines.length} line${errorLines.length > 1 ? 's' : ''} skipped)</p>
+                            <p class="mt-1 text-sm">
+                                The schedule will be generated using the ${successfulLines} valid tasks, but the following lines in your CSV were skipped due to formatting issues.
+                            </p>
+                            <ul class="list-disc list-inside mt-2 text-xs space-y-1 max-h-40 overflow-y-auto p-2 bg-yellow-50 rounded">
+                                ${errorLines.map(e => `<li>${e}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    // If all lines failed, we still report failure
+                    return successfulLines > 0;
                 }
                 
                 return window.courseUnits.length > 0; // Return true if we have any valid units
             } catch (error) {
                 console.error("Critical Error loading timetable data from CSV:", error);
-                // Display the error in the timetable body
-                if(timetableBody) {
-                    timetableBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-700 font-bold">
-                        CRITICAL ERROR: Failed to load assessment data.<br>
-                        Details: ${error.message}
-                    </td></tr>`;
-                }
+                
+                // Fallback catch-all error display
+                const fatalErrorMsg = `An unexpected error occurred during data processing: ${error.message}`;
+                diagnosticsContainer.innerHTML = `
+                    <div class="p-4 rounded-lg shadow-md border-b-4 bg-red-100 border-red-500 text-red-700 mb-6">
+                        <p class="text-lg font-bold">FATAL ERROR</p>
+                        <p class="mt-1 text-sm">${fatalErrorMsg}</p>
+                    </div>
+                `;
+                timetableBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-700 font-bold">Data failed to load. See FATAL ERROR message above.</td></tr>`;
                 return false;
             }
         }
         window.loadTimetableData = loadTimetableData;
 
 
-        // --- SCHEDULING LOGIC (Unchanged from original) ---
+        // --- SCHEDULING LOGIC (Unchanged from previous version) ---
 
         /**
          * Checks if a date is a public holiday.
@@ -463,7 +517,7 @@
                 document.getElementById('timetable-body').innerHTML = `
                     <tr>
                         <td colspan="3" class="p-8 text-center text-red-500">
-                            Assessment data failed to load or is empty. Please check the CSV file content and format.
+                            Assessment data is missing. Please ensure **TIMETABLE_DATA.csv** is correctly loaded and contains valid data.
                         </td>
                     </tr>
                 `;
@@ -493,6 +547,16 @@
             }
 
             if (!tppEndDateStr) {
+                 statusBox.innerHTML = '';
+                 infoBox.innerHTML = `<div class="p-4 card bg-white text-sm"><p class="text-center text-red-500">Please enter a **TPP End Date** to calculate the schedule.</p></div>`;
+                 timetableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="p-8 text-center text-gray-500">
+                            <p>✅ Assessment data loaded successfully (${window.courseUnits.length} units).</p>
+                            <p class="mt-2">Please enter your **TPP End Date** and click "Generate Timetable" to begin.</p>
+                        </td>
+                    </tr>
+                `;
                 return;
             }
 
@@ -517,16 +581,16 @@
             
             // --- 2. CALCULATE ACTUAL AVAILABLE WORKING DAYS ---
             let availableWorkingDays = calculateWorkingDays(currentDate, tppEndDate);
-            let totalAvailableWeeks = Math.floor(availableWorkingDays / WORKING_DAYS_PER_WEEK); // Renamed from availableWeeks
+            let totalAvailableWeeks = (availableWorkingDays / WORKING_DAYS_PER_WEEK).toFixed(1); // Use one decimal for display
             
             // --- 3. DETERMINE PACE ADJUSTMENT ---
             let distributionRatio = 1.0;
             let statusMessage = '';
             let statusClass = '';
 
-            if (totalAvailableWeeks > totalRequiredWeeks) {
+            if (parseFloat(totalAvailableWeeks) > totalRequiredWeeks) {
                 // Time Surplus: Spread the work out
-                distributionRatio = totalAvailableWeeks / totalRequiredWeeks;
+                distributionRatio = parseFloat(totalAvailableWeeks) / totalRequiredWeeks;
                 const surplusPercentage = ((distributionRatio - 1) * 100).toFixed(0);
                 statusClass = 'bg-green-100 border-green-500 text-green-700';
                 statusMessage = `
@@ -537,10 +601,10 @@
                         to spread the extra time evenly across all tasks, providing a more relaxed pace.
                     </p>
                 `;
-            } else if (totalAvailableWeeks < totalRequiredWeeks) {
+            } else if (parseFloat(totalAvailableWeeks) < totalRequiredWeeks) {
                 // Time Deficit: Compress the work schedule
                 // Maximum safe compression is 20% (Ratio 0.8)
-                distributionRatio = Math.max(totalAvailableWeeks / totalRequiredWeeks, 0.8);
+                distributionRatio = Math.max(parseFloat(totalAvailableWeeks) / totalRequiredWeeks, 0.8);
                 const compressionPercentage = ((1 - distributionRatio) * 100).toFixed(0);
 
                 if (distributionRatio <= 0.8) {
@@ -774,6 +838,11 @@
             <p class="text-dapa-primary/80 text-lg">Backward-Scheduled Assessment Plan</p>
              <p id="user-id-display" class="text-xs text-gray-400 mt-2 hidden">User ID: N/A</p>
         </header>
+
+        <!-- NEW: Diagnostics Container -->
+        <div id="error-diagnostics">
+            <!-- Critical errors and parsing warnings will appear here -->
+        </div>
 
         <div class="card p-6 mb-6 no-print">
             <form id="timetable-form" class="space-y-4">
