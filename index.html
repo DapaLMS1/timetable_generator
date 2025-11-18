@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HLT35021 DAPA Assessment Timetable</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         /* Define DAPA Color Palette */
@@ -21,895 +23,63 @@
         .text-dapa-secondary { color: var(--dapa-secondary); }
         .bg-dapa-background { background-color: var(--dapa-background); }
         .hover\:bg-dapa-accent-hover:hover { background-color: var(--dapa-accent-hover); }
-
-        /* General styling for Inter font and background */
+        
+        /* General Styling */
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--dapa-background);
-            color: #333;
         }
-
-        /* Card and input styling */
-        .card {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        .container {
+            max-width: 1000px;
         }
-
-        /* Custom print styles to hide controls and optimize table */
+        /* Print styles */
         @media print {
             .no-print {
                 display: none !important;
             }
             body {
-                background-color: white !important;
+                background-color: white;
             }
-            .card {
+            .timetable-card {
                 box-shadow: none;
-                border: none;
+                border: 1px solid #ccc;
             }
-            table {
-                width: 100%;
-                font-size: 10pt;
+            h1 {
+                color: #000 !important;
             }
-            th, td {
-                padding: 4px 8px !important;
-            }
-            .page-break {
-                page-break-before: always;
-            }
+            /* Ensure text is black for printing */
+            .text-dapa-primary { color: #000 !important; }
         }
     </style>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // Set log level to debug for better error tracing
-        setLogLevel('Debug');
-
-        // Global Firebase variables
-        let app;
-        let db;
-        let auth;
-        let userId = 'anon'; // Default user ID
-
-        const studentDetailsCollection = 'student_details'; // Changed key to be a Collection name
-
-        // Global Firestore variables
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // Authentication Status Flag
-        let isAuthReady = false;
-
-        /**
-         * Initializes Firebase and authenticates the user.
-         */
-        async function initializeFirebase() {
-            if (!firebaseConfig) {
-                console.error("Firebase config is missing. Cannot initialize Firebase.");
-                return;
-            }
-
-            try {
-                // Initialize app and services
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                // Sign in with custom token or anonymously
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                // Set up auth state change listener (to capture final user ID)
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                    } else {
-                        // Fallback/Anonymous user ID
-                        userId = auth.currentUser?.uid || 'anon-' + crypto.randomUUID();
-                    }
-                    isAuthReady = true;
-                    console.log("Authentication ready. User ID:", userId);
-                    // Once ready, load student details and generate schedule
-                    loadStudentDetailsAndGenerate();
-                });
-
-            } catch (error) {
-                console.error("Error initializing Firebase or signing in:", error);
-                isAuthReady = true; // Still mark as ready to proceed without saving/loading
-                loadStudentDetailsAndGenerate();
-            }
-        }
-
-        /**
-         * Get the document path for student details.
-         * The path must have an EVEN number of segments (Collection/Document/Collection/Document)
-         * We use the structure: artifacts/{appId}/users/{userId}/student_details/details
-         * @returns {string} The document path.
-         */
-        function getStudentDetailsDocPath() {
-            // Path must be Collection/Document/Collection/Document/Collection/Document (6 segments)
-            return `artifacts/${appId}/users/${userId}/${studentDetailsCollection}/details`;
-        }
-
-        /**
-         * Saves student details to Firestore.
-         * @param {Object} details - The student data to save.
-         */
-        async function saveStudentDetails(details) {
-            if (!isAuthReady || !db) return console.warn("Firebase not ready to save.");
-            const docRef = doc(db, getStudentDetailsDocPath());
-            try {
-                await setDoc(docRef, details, { merge: true });
-                console.log("Student details saved successfully.");
-                // Clear localStorage fallback if Firestore succeeded
-                localStorage.removeItem(studentDetailsCollection); 
-            } catch (e) {
-                console.error("Error saving document to Firestore:", e);
-                // Fallback to localStorage if Firestore fails
-                localStorage.setItem(studentDetailsCollection, JSON.stringify(details));
-            }
-        }
-
-        /**
-         * Loads student details from Firestore or localStorage.
-         * @returns {Promise<Object>} The loaded student details.
-         */
-        async function loadStudentDetails() {
-            // Try localStorage first if Firebase is not ready
-            if (!isAuthReady || !db) {
-                const localData = localStorage.getItem(studentDetailsCollection);
-                if (localData) {
-                    try {
-                        console.log("Student details loaded from localStorage (Firebase not ready).");
-                        return JSON.parse(localData);
-                    } catch (e) {
-                        console.error("Error parsing localStorage data:", e);
-                        return {};
-                    }
-                }
-                return {};
-            }
-
-            const docRef = doc(db, getStudentDetailsDocPath());
-            try {
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    console.log("Student details loaded from Firestore.");
-                    return docSnap.data();
-                } else {
-                    console.log("No student details found in Firestore. Checking localStorage...");
-                    // Check localStorage as a secondary fallback if Firestore document is missing
-                    const localData = localStorage.getItem(studentDetailsCollection);
-                    if (localData) {
-                         try {
-                            return JSON.parse(localData);
-                        } catch (e) {
-                            console.error("Error parsing localStorage data:", e);
-                            return {};
-                        }
-                    }
-                    return {};
-                }
-            } catch (e) {
-                console.error("Error loading document from Firestore:", e);
-                // Fallback to localStorage if Firestore operation fails
-                const localData = localStorage.getItem(studentDetailsCollection);
-                if (localData) {
-                    try {
-                        return JSON.parse(localData);
-                    } catch (e) {
-                        console.error("Error parsing localStorage data on fallback:", e);
-                    }
-                }
-                return {};
-            }
-        }
-        
-        /**
-         * Main function to handle loading and rendering after auth is complete.
-         */
-        async function loadStudentDetailsAndGenerate() {
-            // STEP 1: Load Timetable Data from CSV first
-            const loadSuccess = await window.loadTimetableData();
-
-            const savedDetails = await loadStudentDetails();
-            const studentNameInput = document.getElementById('student-name');
-            const studentNumberInput = document.getElementById('student-number');
-            const tppEndDateInput = document.getElementById('tpp-end-date');
-            const timetableBody = document.getElementById('timetable-body');
-            
-            // Populate form fields with loaded data
-            if (savedDetails.name) studentNameInput.value = savedDetails.name;
-            if (savedDetails.number) studentNumberInput.value = savedDetails.number;
-            if (savedDetails.tppEndDate) tppEndDateInput.value = savedDetails.tppEndDate;
-
-            // Update timetable based on load result
-            if (!loadSuccess) {
-                 // Error message already set inside loadTimetableData if it failed
-                 return;
-            }
-            
-            // If data loaded but is empty
-            if (window.courseUnits.length === 0) {
-                 timetableBody.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="p-8 text-center text-red-500">
-                            Assessment data loaded but is empty. Please ensure your CSV has valid rows after the header.
-                        </td>
-                    </tr>
-                `;
-            } 
-            else if (tppEndDateInput.value) {
-                // Generate initial schedule if TPP End Date is set
-                document.getElementById('generate-button').click();
-            } else {
-                 timetableBody.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="p-8 text-center text-gray-500">
-                            <p>✅ Assessment data loaded successfully (${window.courseUnits.length} units).</p>
-                            <p class="mt-2">Please enter your **TPP End Date** and click "Generate Timetable" to begin.</p>
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-
-        // --- Make functions available globally for HTML elements ---
-        window.saveStudentDetails = saveStudentDetails;
-        window.loadStudentDetails = loadStudentDetails;
-        window.loadStudentDetailsAndGenerate = loadStudentDetailsAndGenerate;
-        
-        // Initialize Firebase on window load
-        window.onload = initializeFirebase;
-    </script>
-
-    <script>
-        // Global variable to hold the data loaded from CSV
-        let courseUnits = []; 
-
-        // Public Holidays (Australian national holidays, non-specific state)
-        // Format: MM-DD-YYYY
-        const publicHolidays = [
-            // 2025 (Partial)
-            "12-25-2025", "12-26-2025",
-            // 2026
-            "01-01-2026", "01-26-2026",
-            "04-03-2026", "04-06-2026",
-            "04-25-2026",
-            "06-08-2026",
-            "10-05-2026",
-            "12-25-2026", "12-26-2026",
-            // 2027 (Partial)
-            "01-01-2027", "01-26-2027",
-        ];
-        
-        // Define constant for approximation, used for status box logic
-        const WORKING_DAYS_PER_WEEK = 5; 
-
-        /**
-         * Loads and parses timetable data from the CSV file with enhanced error handling.
-         * @returns {Promise<boolean>} True if data loaded successfully, false otherwise.
-         */
-        async function loadTimetableData() {
-            const timetableBody = document.getElementById('timetable-body');
-            const diagnosticsContainer = document.getElementById('error-diagnostics');
-            const csvFilename = 'TIMETABLE_DATA.csv'; // FIX: Removing './' to use filename only as the URL, which is most reliable in this environment.
-            
-            diagnosticsContainer.innerHTML = ''; // Clear previous diagnostics
-            window.courseUnits = []; // Reset global data
-            
-            try {
-                // --- STEP 1: Fetch the file ---
-                const response = await fetch(csvFilename);
-
-                if (!response.ok) {
-                    const errorMsg = `HTTP Error ${response.status} (${response.statusText}). Could not find or access the CSV file.`;
-                    console.error("CRITICAL FETCH ERROR:", errorMsg, { filename: csvFilename });
-                    
-                    diagnosticsContainer.innerHTML = `
-                        <div class="p-4 rounded-lg shadow-md border-b-4 bg-red-100 border-red-500 text-red-700 mb-6">
-                            <p class="text-lg font-bold">CRITICAL ERROR: Failed to Load Timetable Data</p>
-                            <p class="mt-1">
-                                The file **TIMETABLE_DATA.csv** could not be loaded. Please check:
-                                <ul class="list-disc list-inside mt-2 text-sm space-y-1">
-                                    <li>The file exists in the same folder as index.html.</li>
-                                    <li>The **filename is exactly** <strong class="text-red-800">TIMETABLE_DATA.csv</strong> (case-sensitive!).</li>
-                                </ul>
-                            </p>
-                            <p class="mt-2 text-xs">Technical Details: ${errorMsg}</p>
-                        </div>
-                    `;
-                    timetableBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-700 font-bold">Data failed to load. See Critical Error message above.</td></tr>`;
-                    return false;
-                }
-                
-                const csvText = await response.text();
-                // Filter out empty lines, whitespace-only lines, and comment lines
-                const lines = csvText.trim().split('\n')
-                    .map(line => line.trim())
-                    .filter(line => line.length > 0 && !line.startsWith('#'));
-                
-                if (lines.length <= 1) {
-                     console.warn("CSV file is empty or contains only headers/comments.");
-                     timetableBody.innerHTML = `
-                        <tr>
-                            <td colspan="3" class="p-8 text-center text-gray-500">
-                                <p class="font-bold">✅ Data loaded, but content is empty.</p>
-                                <p class="mt-1 text-sm">Please ensure your ${csvFilename} file contains unit and assessment data below the header row.</p>
-                            </td>
-                        </tr>
-                    `;
-                     return false;
-                }
-                
-                // --- STEP 2: Parse and Validate Data ---
-                // Use the first line as the header, but discard it after counting columns
-                const header = lines.shift(); 
-                const expectedColumnCount = 5;
-                const unitsMap = new Map();
-                let successfulLines = 0;
-                let errorLines = [];
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    // Simple split by comma. We assume no commas inside quoted fields for simplicity.
-                    const columns = line.split(',');
-
-                    if (columns.length < expectedColumnCount) {
-                        const errorMsg = `Line ${i + 2} skipped: Expected ${expectedColumnCount} columns, got ${columns.length}.`;
-                        errorLines.push(errorMsg);
-                        continue;
-                    }
-                    
-                    // Assign and trim values (only take the first 5 columns)
-                    const [unitCode, unitTitle, assessmentName, assessmentDescription, daysStr] = columns.slice(0, 5).map(c => c.trim());
-                    const daysRequired = parseInt(daysStr); 
-                    
-                    // Data validation checks
-                    if (!unitCode) {
-                        errorLines.push(`Line ${i + 2} skipped: Missing Unit Code.`);
-                        continue;
-                    }
-                    if (!assessmentDescription && !assessmentName) {
-                        errorLines.push(`Line ${i + 2} skipped: Missing Assessment Name and Description.`);
-                        continue;
-                    }
-                    if (isNaN(daysRequired) || daysRequired <= 0) {
-                        errorLines.push(`Line ${i + 2} skipped: Invalid Days Required ('${daysStr}'). Must be a number > 0.`);
-                        continue;
-                    }
-
-                    // Proceed with successful parsing
-                    const unitKey = unitCode;
-
-                    if (!unitsMap.has(unitKey)) {
-                        unitsMap.set(unitKey, {
-                            unit: unitKey,
-                            title: unitTitle || 'N/A', 
-                            tasks: []
-                        });
-                    }
-                    
-                    const unitData = unitsMap.get(unitKey);
-                    
-                    // Combine Assessment Name and Assessment Description
-                    const fullDescription = `${assessmentName || ''}${assessmentDescription ? ': ' + assessmentDescription : ''}`;
-
-                    // Add the task
-                    unitData.tasks.push({
-                        id: `${unitKey.toLowerCase()}_${unitData.tasks.length + 1}`,
-                        description: fullDescription,
-                        days: daysRequired 
-                    });
-                    successfulLines++;
-                }
-                
-                // Convert map values to the final global array
-                window.courseUnits = Array.from(unitsMap.values());
-                console.log(`Timetable data loaded successfully. Total successful tasks: ${successfulLines}.`);
-                
-                // --- STEP 3: Display Parsing Diagnostics (if any errors occurred) ---
-                if (errorLines.length > 0) {
-                     diagnosticsContainer.innerHTML = `
-                        <div class="p-4 rounded-lg shadow-md border-b-4 bg-yellow-100 border-yellow-500 text-yellow-700 mb-6">
-                            <p class="text-lg font-bold">Data Parsing Warnings (${errorLines.length} line${errorLines.length > 1 ? 's' : ''} skipped)</p>
-                            <p class="mt-1 text-sm">
-                                The schedule will be generated using the ${successfulLines} valid tasks, but the following lines in your CSV were skipped due to formatting issues.
-                            </p>
-                            <ul class="list-disc list-inside mt-2 text-xs space-y-1 max-h-40 overflow-y-auto p-2 bg-yellow-50 rounded">
-                                ${errorLines.map(e => `<li>${e}</li>`).join('')}
-                            </ul>
-                        </div>
-                    `;
-                    // If all lines failed, we still report failure
-                    return successfulLines > 0;
-                }
-                
-                return window.courseUnits.length > 0; // Return true if we have any valid units
-            } catch (error) {
-                console.error("Critical Error loading timetable data from CSV:", error);
-                
-                // Fallback catch-all error display
-                const fatalErrorMsg = `An unexpected error occurred during data processing: ${error.message}`;
-                diagnosticsContainer.innerHTML = `
-                    <div class="p-4 rounded-lg shadow-md border-b-4 bg-red-100 border-red-500 text-red-700 mb-6">
-                        <p class="text-lg font-bold">FATAL ERROR</p>
-                        <p class="mt-1 text-sm">${fatalErrorMsg}</p>
-                    </div>
-                `;
-                timetableBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-700 font-bold">Data failed to load. See FATAL ERROR message above.</td></tr>`;
-                return false;
-            }
-        }
-        window.loadTimetableData = loadTimetableData;
-
-
-        // --- SCHEDULING LOGIC (Unchanged from previous version) ---
-
-        /**
-         * Checks if a date is a public holiday.
-         * @param {Date} date - The date to check.
-         * @returns {boolean} True if it is a public holiday.
-         */
-        function isPublicHoliday(date) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            const dateString = `${month}-${day}-${year}`;
-            return publicHolidays.includes(dateString);
-        }
-
-        /**
-         * Checks if a date is a working day (Mon-Fri and not a public holiday).
-         * @param {Date} date - The date to check.
-         * @returns {boolean} True if it is a working day.
-         */
-        function isWorkingDay(date) {
-            const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-            return !isWeekend && !isPublicHoliday(date);
-        }
-
-        /**
-         * Decrements a date by a specified number of working days.
-         * @param {Date} date - The starting date.
-         * @param {number} days - The number of working days to subtract.
-         * @returns {Date} The new date.
-         */
-        function subtractWorkingDays(date, days) {
-            let resultDate = new Date(date);
-            let daysRemaining = days;
-
-            while (daysRemaining > 0) {
-                resultDate.setDate(resultDate.getDate() - 1);
-                if (isWorkingDay(resultDate)) {
-                    daysRemaining--;
-                }
-            }
-            return resultDate;
-        }
-
-        /**
-         * Calculates the total number of working days between two dates (inclusive of end, exclusive of start).
-         * @param {Date} startDate - The start date.
-         * @param {Date} endDate - The end date.
-         * @returns {number} The total number of working days.
-         */
-        function calculateWorkingDays(startDate, endDate) {
-            let count = 0;
-            let current = new Date(startDate);
-            // Start from the day after the start date, end on the end date
-            current.setDate(current.getDate() + 1);
-
-            while (current <= endDate) {
-                if (isWorkingDay(current)) {
-                    count++;
-                }
-                current.setDate(current.getDate() + 1);
-            }
-            return count;
-        }
-
-        /**
-         * Generates the backward-scheduled timetable.
-         */
-        function generateTimetable() {
-            // Use the globally loaded data
-            const assessmentUnits = window.courseUnits;
-            
-            if (assessmentUnits.length === 0) {
-                console.error("Cannot generate timetable: Assessment data is empty.");
-                // Ensure a message is shown if data is missing *after* a load attempt
-                document.getElementById('timetable-body').innerHTML = `
-                    <tr>
-                        <td colspan="3" class="p-8 text-center text-red-500">
-                            Assessment data is missing. Please ensure **TIMETABLE_DATA.csv** is correctly loaded and contains valid data.
-                        </td>
-                    </tr>
-                `;
-                return; 
-            }
-
-            const tppEndDateStr = document.getElementById('tpp-end-date').value;
-            const studentName = document.getElementById('student-name').value.trim();
-            const studentNumber = document.getElementById('student-number').value.trim();
-            const timetableBody = document.getElementById('timetable-body');
-            const statusBox = document.getElementById('status-box');
-            const infoBox = document.getElementById('info-box');
-            const userIdDisplay = document.getElementById('user-id-display');
-
-            // Save details before generating
-            const detailsToSave = {
-                name: studentName,
-                number: studentNumber,
-                tppEndDate: tppEndDateStr
-            };
-            window.saveStudentDetails(detailsToSave);
-            
-            // Display User ID (for debugging/sharing public artifacts)
-            if (typeof userId !== 'undefined') {
-                 userIdDisplay.textContent = `User ID: ${userId}`;
-                 userIdDisplay.classList.remove('hidden');
-            }
-
-            if (!tppEndDateStr) {
-                 statusBox.innerHTML = '';
-                 infoBox.innerHTML = `<div class="p-4 card bg-white text-sm"><p class="text-center text-red-500">Please enter a **TPP End Date** to calculate the schedule.</p></div>`;
-                 timetableBody.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="p-8 text-center text-gray-500">
-                            <p>✅ Assessment data loaded successfully (${window.courseUnits.length} units).</p>
-                            <p class="mt-2">Please enter your **TPP End Date** and click "Generate Timetable" to begin.</p>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            // Define constant for approximation, used for status box logic
-            const WORKING_DAYS_PER_WEEK = 5; 
-            // The current date (used for comparison)
-            const currentDate = new Date();
-            currentDate.setHours(0, 0, 0, 0); // Normalize to start of day
-
-            // TPP End Date (Assessment due date)
-            let tppEndDate = new Date(tppEndDateStr);
-            tppEndDate.setDate(tppEndDate.getDate() + 1); // Move to the day after, so all work must be completed before it
-            
-            // --- 1. CALCULATE TOTAL REQUIRED WORKING DAYS ---
-            // NEW: Sum the 'days' property directly from the imported data
-            const totalRequiredWorkingDays = assessmentUnits.reduce((acc, unit) => {
-                return acc + unit.tasks.reduce((taskAcc, task) => taskAcc + task.days, 0);
-            }, 0);
-            
-            // Calculate the required weeks for the status box comparison (using the 5-day approximation)
-            const totalRequiredWeeks = totalRequiredWorkingDays / WORKING_DAYS_PER_WEEK;
-            
-            // --- 2. CALCULATE ACTUAL AVAILABLE WORKING DAYS ---
-            let availableWorkingDays = calculateWorkingDays(currentDate, tppEndDate);
-            let totalAvailableWeeks = (availableWorkingDays / WORKING_DAYS_PER_WEEK).toFixed(1); // Use one decimal for display
-            
-            // --- 3. DETERMINE PACE ADJUSTMENT ---
-            let distributionRatio = 1.0;
-            let statusMessage = '';
-            let statusClass = '';
-
-            if (parseFloat(totalAvailableWeeks) > totalRequiredWeeks) {
-                // Time Surplus: Spread the work out
-                distributionRatio = parseFloat(totalAvailableWeeks) / totalRequiredWeeks;
-                const surplusPercentage = ((distributionRatio - 1) * 100).toFixed(0);
-                statusClass = 'bg-green-100 border-green-500 text-green-700';
-                statusMessage = `
-                    <p class="text-xs font-semibold uppercase tracking-wider">SCHEDULE FULLY DISTRIBUTED</p>
-                    <p class="text-sm font-medium mt-1">
-                        You have more time available. This schedule has been redistributed by 
-                        <strong class="font-extrabold text-green-800">${surplusPercentage}%</strong> 
-                        to spread the extra time evenly across all tasks, providing a more relaxed pace.
-                    </p>
-                `;
-            } else if (parseFloat(totalAvailableWeeks) < totalRequiredWeeks) {
-                // Time Deficit: Compress the work schedule
-                // Maximum safe compression is 20% (Ratio 0.8)
-                distributionRatio = Math.max(parseFloat(totalAvailableWeeks) / totalRequiredWeeks, 0.8);
-                const compressionPercentage = ((1 - distributionRatio) * 100).toFixed(0);
-
-                if (distributionRatio <= 0.8) {
-                    // Critical deficit (more than 20% compression needed)
-                    statusClass = 'bg-red-100 border-red-500 text-red-700';
-                    statusMessage = `
-                        <p class="text-xs font-semibold uppercase tracking-wider">CRITICAL WARNING: AGGRESSIVE COMPRESSION</p>
-                        <p class="text-sm font-medium mt-1">
-                            Your required workload exceeds the time available. This schedule is compressed by 
-                            <strong class="font-extrabold text-red-800">${compressionPercentage}%</strong> 
-                            which is the maximum recommended. You will need to start immediately or renegotiate your TPP End Date.
-                        </p>
-                    `;
-                } else {
-                    // Moderate deficit (less than 20% compression)
-                    statusClass = 'bg-yellow-100 border-yellow-500 text-yellow-700';
-                    statusMessage = `
-                        <p class="text-xs font-semibold uppercase tracking-wider">SCHEDULE COMPRESSED</p>
-                        <p class="text-sm font-medium mt-1">
-                            Your time is tight. This schedule is compressed by 
-                            <strong class="font-extrabold text-yellow-800">${compressionPercentage}%</strong>. 
-                            You must adhere strictly to these deadlines to complete on time.
-                        </p>
-                    `;
-                }
-            } else {
-                // Perfect Fit (Ratio 1.0)
-                statusClass = 'bg-blue-100 border-blue-500 text-blue-700';
-                statusMessage = `
-                    <p class="text-xs font-semibold uppercase tracking-wider">SCHEDULE PERFECTLY ALIGNED</p>
-                    <p class="text-sm font-medium mt-1">
-                        The required workload perfectly matches the available time. Adhere strictly to this schedule.
-                    </p>
-                `;
-            }
-            
-            // --- 4. GENERATE SCHEDULE ---
-
-            let scheduledItems = [];
-            let currentSubmissionDate = new Date(tppEndDate); // Start at TPP End Date
-            
-            // Iterate units backward (The array is structured from start-to-end, so we iterate in reverse)
-            for (let i = assessmentUnits.length - 1; i >= 0; i--) {
-                const unit = assessmentUnits[i];
-                let unitItems = []; // To store tasks for the current unit
-                
-                // Iterate tasks backward
-                for (let j = unit.tasks.length - 1; j >= 0; j--) {
-                    const task = unit.tasks[j];
-                    
-                    // 1. Calculate required working days for this task, adjusted by the distribution ratio
-                    // NEW: Use imported days directly
-                    const originalWorkingDays = task.days; 
-                    const adjustedWorkingDays = Math.max(1, Math.ceil(originalWorkingDays / distributionRatio));
-
-                    // 2. Subtract the required time from the current end date
-                    currentSubmissionDate = subtractWorkingDays(currentSubmissionDate, adjustedWorkingDays);
-
-                    // 3. Format the submission date and determine status/styling
-                    const formattedDate = currentSubmissionDate.toLocaleDateString('en-AU', {
-                        day: '2-digit', month: '2-digit', year: 'numeric'
-                    });
-                    
-                    let rowClass = 'text-gray-900';
-                    let descriptionDetail = '';
-                    
-                    // Check if the due date is in the past
-                    if (currentSubmissionDate < currentDate) {
-                        rowClass = 'bg-red-50 text-red-700 font-bold line-through';
-                        descriptionDetail = '<span class="text-red-600 font-extrabold"> (PAST DUE)</span>';
-                    }
-
-                    // Append the task to the unit's list
-                    unitItems.push({
-                        unit: unit.unit,
-                        description: task.description, // Task description
-                        date: formattedDate,
-                        rowClass: rowClass,
-                        descriptionDetail: descriptionDetail,
-                        originalDays: originalWorkingDays, // NEW: Store original days
-                        adjustedDays: adjustedWorkingDays
-                    });
-                }
-                
-                // Add the Unit Header (using the final task's due date as the unit completion date)
-                if (unitItems.length > 0) {
-                    const unitHeader = {
-                        unit: unit.unit,
-                        description: unit.title,
-                        isHeader: true,
-                        date: unitItems[unitItems.length - 1].date, // Submission date of the earliest task in this unit
-                    };
-                    scheduledItems.push(unitHeader);
-                    
-                    // Add the unit's tasks, reversed to appear chronologically (oldest submission first)
-                    scheduledItems.push(...unitItems.reverse());
-                }
-            }
-            
-            // --- 5. FORMAT OUTPUT ---
-
-            // The last item's date is the START DATE of the whole course
-            let actualStartDate = '';
-            for(let i = scheduledItems.length - 1; i >= 0; i--) {
-                if(!scheduledItems[i].isHeader) {
-                    actualStartDate = scheduledItems[i].date;
-                    break;
-                }
-            }
-            
-            // The first item is the FINISH date (TPP End Date)
-            const formattedTppEndDate = tppEndDate.toLocaleDateString('en-AU', {
-                day: '2-digit', month: '2-digit', year: 'numeric'
-            });
-
-            // Timetable Info Box
-            infoBox.innerHTML = `
-                <div class="p-4 card bg-white text-sm">
-                    <div class="flex flex-wrap -mx-2">
-                        <div class="w-full md:w-1/3 px-2 mb-2 md:mb-0">
-                            <span class="font-semibold text-dapa-primary">Start Date:</span> 
-                            <strong class="text-lg text-dapa-primary">${actualStartDate}</strong>
-                        </div>
-                        <div class="w-full md:w-1/3 px-2 mb-2 md:mb-0">
-                            <span class="font-semibold text-dapa-primary">TPP End Date:</span> 
-                            <strong class="text-lg text-dapa-primary">${formattedTppEndDate}</strong>
-                        </div>
-                        <div class="w-full md:w-1/3 px-2">
-                            <span class="font-semibold text-dapa-primary">Remaining Weeks:</span> 
-                            <strong class="text-lg text-dapa-primary">${totalAvailableWeeks}</strong>
-                        </div>
-                    </div>
-                    <div class="mt-3 border-t pt-2">
-                        <span class="font-semibold text-dapa-primary">Name:</span> ${studentName || 'Not Entered'} | 
-                        <span class="font-semibold text-dapa-primary">Student No:</span> ${studentNumber || 'Not Entered'}
-                    </div>
-                </div>
-            `;
-            
-            // Timetable Status Box
-            statusBox.innerHTML = `
-                <div class="p-4 rounded-lg shadow-md border-b-4 ${statusClass}">
-                    ${statusMessage}
-                </div>
-            `;
-
-            // Timetable Rows
-            const htmlRows = scheduledItems.map(item => {
-                if (item.isHeader) {
-                    return `
-                        <tr class="bg-dapa-secondary/30 font-bold text-dapa-primary/90 border-t border-b border-dapa-primary/20">
-                            <td class="px-6 py-3 whitespace-nowrap">${item.unit}</td>
-                            <td class="px-6 py-3 whitespace-nowrap" colspan="2">${item.description}</td>
-                        </tr>
-                    `;
-                } else {
-                    // Approximate weeks for display purposes
-                    const originalWeeks = (item.originalDays / WORKING_DAYS_PER_WEEK).toFixed(1);
-
-                    return `
-                        <tr class="${item.rowClass}">
-                            <td class="px-6 py-2 whitespace-nowrap text-sm font-medium">${item.unit}</td>
-                            <td class="px-6 py-2 whitespace-normal text-sm">
-                                <strong class="text-gray-700">${item.description}</strong>
-                                <span class="text-xs text-gray-500"> (Days: ${item.adjustedDays}, Weeks: ${originalWeeks})</span>
-                                ${item.descriptionDetail}
-                            </td>
-                            <td class="px-6 py-2 whitespace-nowrap text-sm font-medium">${item.date}</td>
-                        </tr>
-                    `;
-                }
-            }).join('');
-
-            // Add the page break helper at the bottom
-             timetableBody.innerHTML = htmlRows + `
-                <tr>
-                    <td colspan="3" class="page-break"></td>
-                </tr>
-            `;
-        }
-    
-        // --- EVENT LISTENERS AND HELPERS (Unchanged from original) ---
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const generateButton = document.getElementById('generate-button');
-            const printButton = document.getElementById('print-button');
-            const form = document.getElementById('timetable-form');
-            const tppEndDateInput = document.getElementById('tpp-end-date');
-
-            // Set the minimum date for the TPP End Date to the next day
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const minDate = tomorrow.toISOString().split('T')[0];
-            tppEndDateInput.setAttribute('min', minDate);
-
-            generateButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                generateTimetable();
-            });
-
-            form.addEventListener('change', (e) => {
-                // If a form field changes, save the details automatically
-                const detailsToSave = {
-                    name: document.getElementById('student-name').value.trim(),
-                    number: document.getElementById('student-number').value.trim(),
-                    tppEndDate: document.getElementById('tpp-end-date').value
-                };
-                window.saveStudentDetails(detailsToSave);
-            });
-
-            printButton.addEventListener('click', () => {
-                window.print();
-            });
-
-            // Initial message until data is loaded/entered (Will be overwritten by loadStudentDetailsAndGenerate)
-            document.getElementById('timetable-body').innerHTML = `
-                <tr>
-                    <td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
-                </tr>
-            `;
-
-        });
-    </script>
 </head>
-<body class="p-4 sm:p-8">
+<body class="p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto">
-        
-        <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-dapa-primary mb-2">HLT35021 Dental Assisting Timetable</h1>
-            <p class="text-dapa-primary/80 text-lg">Backward-Scheduled Assessment Plan</p>
-             <p id="user-id-display" class="text-xs text-gray-400 mt-2 hidden">User ID: N/A</p>
+    <div class="container mx-auto">
+        <header class="text-center mb-10 no-print">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-dapa-primary tracking-tight mb-2">
+                HLT35021 Assessment Timetable
+            </h1>
+            <p class="text-lg text-gray-600">Dynamic Planning, Assessment, and Reporting (DAPA)</p>
         </header>
 
-        <!-- NEW: Diagnostics Container -->
-        <div id="error-diagnostics">
-            <!-- Critical errors and parsing warnings will appear here -->
-        </div>
-
-        <div class="card p-6 mb-6 no-print">
-            <form id="timetable-form" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label for="student-name" class="block text-sm font-medium text-gray-700">Student Name</label>
-                        <input type="text" id="student-name" name="student-name" placeholder="Enter your full name"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border">
-                    </div>
-                    <div>
-                        <label for="student-number" class="block text-sm font-medium text-gray-700">Student Number</label>
-                        <input type="text" id="student-number" name="student-number" placeholder="Enter student ID"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border">
-                    </div>
-                    <div>
-                        <label for="tpp-end-date" class="block text-sm font-medium text-gray-700">TPP End Date (Target Submission)</label>
-                        <input type="date" id="tpp-end-date" name="tpp-end-date" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring-dapa-primary p-2 border">
-                    </div>
-                </div>
-                
-                <div class="pt-4 flex justify-center">
-                    <button id="generate-button" type="submit"
-                            class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-lg flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-2">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM6.75 9.25a.75.75 0 0 0 0 1.5h4.56l-1.353 1.354a.75.75 0 0 0 1.06 1.06l2.5-2.5a.75.75 0 0 0 0-1.06l-2.5-2.5a.75.75 0 0 0-1.06 1.06l1.353 1.354H6.75Z" clip-rule="evenodd" />
-                        </svg>
-                        Generate Timetable
-                    </button>
-                </div>
-            </form>
+        <!-- Current User Display for Debugging -->
+        <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 p-3 rounded-lg mb-4 text-sm no-print">
+            <p class="font-bold">DEBUG INFO (Check Console F12 for verbosity):</p>
+            <p>User Status: <span id="auth-status" class="font-mono">...Authenticating...</span></p>
+            <p>Firestore Path: <span id="firestore-path" class="font-mono">...Determining...</span></p>
         </div>
         
-        <div id="info-box" class="mb-6">
-            <div class="p-4 card bg-white text-sm">
-                <p class="text-center text-gray-500">Enter your details and TPP End Date above to generate the schedule.</p>
-            </div>
-        </div>
-
-        <div id="status-box" class="mb-6">
-            </div>
-
-        <div class="card overflow-x-auto shadow-xl">
+        <div class="timetable-card bg-white shadow-xl rounded-xl overflow-hidden">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-dapa-secondary/50">
+                <thead class="bg-dapa-secondary">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-dapa-primary uppercase tracking-wider w-1/5">
-                            Unit
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-dapa-primary uppercase tracking-wider">
+                            Unit Code & Name
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-dapa-primary uppercase tracking-wider w-3/5">
-                            Assessment Description / Duration (Days)
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-dapa-primary uppercase tracking-wider hidden sm:table-cell">
+                            Assessment Type
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-dapa-primary uppercase tracking-wider w-1/5">
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-dapa-primary uppercase tracking-wider">
                             Submission Date
                         </th>
                     </tr>
@@ -925,16 +95,200 @@
         <div class="flex justify-center mt-6 no-print" id="print-button-container">
             <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-2">
-                    <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v12.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15V2.5ZM15 5.5v2.5a.75.75 0 0 0 1.5 0V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v4a.75.75 0 0 0 1.5 0V5.5H15Z" clip-rule="evenodd" />
+                    <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v12.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15V2.5ZM15 5.5v2.5a.75.75 0 0 0 1.5 0V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v4.5a.75.75 0 0 0 1.5 0V5.5h11ZM4 15V9.75a.75.75 0 0 1 1.5 0V15a.75.75 0 0 0 .75.75h7a.75.75 0 0 0 .75-.75V9.75a.75.75 0 0 1 1.5 0V15A1.5 1.5 0 0 1 13.5 16.5h-7A1.5 1.5 0 0 1 5 15V9.75a.75.75 0 0 1-1.5 0V15Z" clip-rule="evenodd" />
                 </svg>
-                Print/Export PDF
+                Print Timetable
             </button>
         </div>
-
-        <footer class="mt-8 text-center text-xs text-gray-400 p-4 border-t border-gray-200">
-            This tool uses a backward-scheduling algorithm and approximates working days to generate a draft timetable. Always confirm final due dates with your trainer.
-        </footer>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth;
+
+        // --- CORE FUNCTIONS ---
+
+        /**
+         * Helper function to render an error message to the UI.
+         * This is key for verbose error reporting outside of the console.
+         * @param {string} message The error message to display.
+         */
+        function renderErrorState(message) {
+            const timetableBody = document.getElementById('timetable-body');
+            timetableBody.innerHTML = `
+                <tr>
+                    <td colspan="3" class="p-4 text-center text-red-700 font-semibold bg-red-100 rounded-b-xl">
+                        <p class="text-lg">⚠️ ERROR LOADING DATA</p>
+                        <p class="text-sm mt-1 text-red-900 break-all">${message}</p>
+                        <p class="text-xs mt-2 text-red-500">
+                            Check the Console (F12) for detailed logs, especially for
+                            <strong class="text-red-700">Firestore Security Rules</strong> errors.
+                        </p>
+                    </td>
+                </tr>
+            `;
+            document.getElementById('auth-status').textContent = "❌ Initialization Failed";
+            console.error("UI Error Message Displayed:", message);
+        }
+
+        /**
+         * Renders the timetable data to the table body.
+         * @param {Array<Object>} assessments Array of assessment objects.
+         */
+        function updateTimetable(assessments) {
+            const timetableBody = document.getElementById('timetable-body');
+            
+            // Sort assessments by date. Firestore's orderBy is avoided due to indexing issues, so we sort client-side.
+            assessments.sort((a, b) => {
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                return dateA - dateB;
+            });
+
+            if (assessments.length === 0) {
+                timetableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="p-8 text-center text-gray-500">
+                            No assessments found for this user. Add one to get started!
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            timetableBody.innerHTML = assessments.map(assessment => {
+                const formattedDate = new Date(assessment.date).toLocaleDateString('en-AU', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                });
+
+                return `
+                    <tr class="hover:bg-gray-50 transition duration-150">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            ${assessment.unitCode} - ${assessment.unitName}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                            ${assessment.type}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-dapa-primary">
+                            ${formattedDate}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Initializes Firebase and sets up the Firestore listener.
+         */
+        async function initFirebaseAndLoadData() {
+            try {
+                // VERBOSE LOGGING START
+                setLogLevel('debug');
+                console.log("--- STARTING FIREBASE INITIALIZATION ---");
+                console.log("App ID:", appId);
+
+                if (Object.keys(firebaseConfig).length === 0) {
+                    throw new Error("Firebase Configuration is missing. Please ensure '__firebase_config' is defined.");
+                }
+                console.log("Firebase Config loaded successfully.");
+
+                // 1. Initialize Firebase App
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 2. Authentication
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                    console.log(`Attempting sign-in with custom token...`);
+                } else {
+                    await signInAnonymously(auth);
+                    console.log(`Attempting anonymous sign-in...`);
+                }
+
+                const userId = auth.currentUser?.uid || 'N/A';
+                
+                if (auth.currentUser) {
+                     document.getElementById('auth-status').textContent = `✅ Success (UID: ${userId})`;
+                     console.log(`✅ Authentication Successful. User ID: ${userId}`);
+                } else {
+                     throw new Error("Authentication failed. User object is null after sign-in attempt.");
+                }
+
+                // 3. Firestore Listener Setup
+                const collectionName = 'assessments';
+                // Using the required private collection path: /artifacts/{appId}/users/{userId}/assessments
+                const collectionPath = `artifacts/${appId}/users/${userId}/${collectionName}`;
+
+                document.getElementById('firestore-path').textContent = collectionPath;
+                console.log(`📡 Attempting to connect to Firestore path: ${collectionPath}`);
+
+                const q = collection(db, collectionPath);
+
+                // Use onSnapshot with an explicit error callback for verbose debugging
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    console.log(`📥 Received data snapshot. Total documents: ${snapshot.docs.length}`);
+                    
+                    const assessments = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+
+                    updateTimetable(assessments);
+                    console.log("✅ Timetable updated successfully.");
+                }, 
+                // CRUCIAL: Error callback for the listener
+                (error) => {
+                    console.error("❌ Firestore Listener FAILED!", error);
+                    let errorMessage = error.message;
+
+                    // If it's a Firestore error, grab the code and provide detailed advice
+                    if (error.code) {
+                        const errorCode = error.code.toUpperCase().replace(/_/g, ' ');
+                        errorMessage = `[${errorCode}] ${error.message}`;
+                        
+                        if (error.code === 'permission-denied') {
+                            errorMessage += ". This is almost always a **Firestore Security Rule** issue. Check your rules to ensure the path is accessible.";
+                        }
+                    }
+
+                    // Display a user-friendly error state on the screen
+                    renderErrorState(errorMessage);
+                });
+
+                // In a real app, you might return the unsubscribe function to clean up later.
+                // return unsubscribe;
+
+            } catch (error) {
+                // Catch any fatal errors during initialization or sign-in
+                console.error("FATAL INITIALIZATION ERROR:", error);
+                const errorMessage = error.message || "An unknown error occurred during app initialization.";
+                renderErrorState(`Initialization Failed: ${errorMessage}`);
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initFirebaseAndLoadData();
+
+            // Print button handler
+            const printButton = document.getElementById('print-button');
+            if (printButton) {
+                printButton.addEventListener('click', () => {
+                    window.print();
+                });
+            }
+        });
+    </script>
 </body>
 </html>
