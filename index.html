@@ -239,20 +239,6 @@
             const weeks = match ? parseInt(match[1], 10) : 0;
             return weeks * 7;
         }
-
-        /**
-         * Calculates the total duration of the course in weeks.
-         * @returns {number} The total duration in weeks.
-         */
-        function calculateTotalWeeks() {
-            let totalWeeks = 0;
-            UNIT_ASSESSMENT_DATA.forEach(item => {
-                const match = item.Weeks.match(/(\d+)/);
-                const weeks = match ? parseInt(match[1], 10) : 0;
-                totalWeeks += weeks;
-            });
-            return totalWeeks;
-        }
         
         /**
          * Checks if a date falls on a weekend (Saturday or Sunday).
@@ -445,15 +431,14 @@
             let latestCalculatedStartDate = null;
             let adjustedCourseEndDate = null;
             let scheduleIsStretched = false;
-            const totalWeeks = calculateTotalWeeks(); // Calculate total weeks once
 
             // Reset header display and stretch message
             calculatedStartDateEl.textContent = 'N/A';
             calculatedStartDatePrintEl.textContent = 'N/A';
             desiredEndDateEl.textContent = 'N/A';
             desiredEndDatePrintEl.textContent = 'N/A';
-            durationEl.textContent = `${totalWeeks} Weeks`; // Always show total duration
-            durationPrintEl.textContent = `${totalWeeks} Weeks`;
+            durationEl.textContent = 'N/A'; // Reset duration display
+            durationPrintEl.textContent = 'N/A'; // Reset duration display
             stretchMessage.classList.add('hidden');
             printInfoName.textContent = studentDetails.name || 'N/A';
             printInfoNumber.textContent = studentDetails.number || 'N/A';
@@ -465,6 +450,30 @@
             if (!courseAnchorDateStr) {
                 return;
             }
+
+            // --- Dynamic Duration Calculation ---
+            const endDateObj = new Date(courseAnchorDateStr);
+            endDateObj.setHours(12, 0, 0, 0); // Normalize to noon
+            
+            // Calculate difference in milliseconds
+            const timeDiff = endDateObj.getTime() - TODAY.getTime();
+            
+            let durationWeeks = 0;
+            if (timeDiff > 0) {
+                 // Calculate difference in days, round up to nearest whole week
+                const dayDiff = timeDiff / (1000 * 60 * 60 * 24);
+                durationWeeks = Math.ceil(dayDiff / 7); 
+            } else {
+                durationWeeks = 0; // End date is today or in the past
+            }
+
+            const durationDisplay = `${durationWeeks} Weeks Remaining`;
+
+            // Update duration display
+            durationEl.textContent = durationDisplay;
+            durationPrintEl.textContent = durationDisplay;
+            // --- End Dynamic Duration Calculation ---
+
 
             // 1. Set the initial anchor date (TPP End Date)
             // Find the last valid working day (Mon-Fri, non-holiday) on or before the user's selected date.
@@ -561,7 +570,7 @@
                     </td>
                     <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${isPastDue ? 'text-red-600' : 'text-green-600'} w-4/12">
                         ${dateString}
-                        ${isPastDue ? '<p class="text-xs font-medium text-red-500">(Past Due! You may need to adjust your end date or stretch the schedule.)</p>' : ''}
+                        ${isPastDue ? '<p class="text-xs font-medium text-red-500">Insufficient Time</p>' : ''}
                     </td>
                 `;
                 container.appendChild(row);
