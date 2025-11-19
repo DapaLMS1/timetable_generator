@@ -223,6 +223,7 @@
         // State variables
         let studentDetails = { name: '', number: '', startDate: '' }; 
         let calculatedSchedule = []; 
+        let finalResult = null; // Stores the final scheduling result object for use in printing/logic
         
         // DOM Elements
         const courseEndDateInput = document.getElementById('course-end-date');
@@ -557,10 +558,50 @@
         }
         
         /**
-         * Trigger the browser's print dialog.
+         * Trigger the browser's print dialog and rename the document.
          */
         function handlePrint() {
+            // Check if calculation has been performed
+            if (!finalResult || !studentDetails.startDate) {
+                showMessage("Please generate the timetable first.", true);
+                return;
+            }
+
+            const studentName = document.getElementById('student-name').value.trim();
+            const calculatedStartDate = finalResult.latestCalculatedStartDate;
+            // The adjustedCourseEndDate is the last valid submission date calculated from TPP End Date
+            const tppEndDate = finalResult.adjustedCourseEndDate; 
+            
+            // Utility to format dates for filename (DD-MM-YYYY)
+            const formatFilenameDate = (dateObj) => {
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const year = dateObj.getFullYear();
+                return `${day}-${month}-${year}`;
+            };
+
+            const startStr = formatFilenameDate(calculatedStartDate);
+            const endStr = formatFilenameDate(tppEndDate);
+            
+            // Use 'Student' if name is empty, and replace spaces with underscores for filename compatibility
+            const cleanedName = (studentName || 'Student').replace(/\s+/g, '_');
+
+            // Desired format: {student name}_Timetable HLT35021_{start date}_{TPP end date}
+            const newTitle = `${cleanedName}_Timetable_HLT35021_${startStr}_${endStr}`;
+            
+            // Store original title
+            const originalTitle = document.title;
+            
+            // Set the new title, which the print dialog uses for the filename
+            document.title = newTitle;
+
+            // Trigger the print dialog
             window.print();
+            
+            // Restore title immediately after print() call (best effort)
+            setTimeout(() => {
+                document.title = originalTitle;
+            }, 100); 
         }
 
         /**
@@ -648,7 +689,8 @@
             desiredEndDatePrintEl.textContent = formatDate(endDateObj);
             
             // --- SCHEDULING LOGIC START ---
-            let finalResult;
+            // Note: finalResult is now a global variable
+            
             let totalRequiredDays = getTotalRequiredDays(data); 
             let actualStartTime = getNextValidDate(TODAY); // The date the course will realistically start
 
