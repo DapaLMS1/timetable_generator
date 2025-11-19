@@ -76,14 +76,13 @@
             
             <!-- This heading is only visible on the screen -->
             <h1 class="no-print text-3xl md:text-4xl font-extrabold text-dapa-primary">
-                DAPA Assessment Timetable Generator
+                HLT35021 DAPA Assessment Submission Timetable
             </h1>
             <!-- This heading is only visible when printing/generating PDF -->
             <h1 class="print-only text-2xl md:text-3xl font-extrabold text-dapa-primary">
                 Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING
             </h1>
-            <!-- Updated Descriptive Text -->
-            <p class="text-lg text-gray-600 mt-2">Submission Timeline Calculation</p>
+            <!-- Removed the messy "Submission Timeline Calculation" descriptive text -->
         </header>
 
         <!-- Message Box (Alerts/Notifications) -->
@@ -158,25 +157,25 @@
             <!-- Start Now Message -->
             <div id="time-pressure-message" class="hidden p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg" role="alert">
                 <p class="font-bold">Start Now</p>
-                <p>Your timetable shows you need to **start today** to finish by the TPP End Date at a normal pace. Please begin your work immediately.</p>
+                <p>Your timetable shows you need to start today to finish by the TPP End Date at a normal pace. Please begin your work immediately.</p>
             </div>
             
             <!-- Fast Track Message -->
             <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg" role="alert">
                 <p class="font-bold">Fast Track Required</p>
-                <p>Your study load is condensed by <span id="aggressive-percent" class="font-extrabold"></span>. This is a **demanding schedule** and requires you to dedicate more time each week to complete the work.</p>
+                <p>Your study load is condensed by <span id="aggressive-percent" class="font-extrabold"></span>. This is a demanding schedule and requires you to dedicate more time each week to complete the work.</p>
             </div>
             
             <!-- Flexible Pace Message -->
             <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg" role="alert">
                 <p class="font-bold">Flexible Pace: Great news!</p>
-                <p>Because you have extra time before the TPP End Date, **your weekly study pace has been eased** by <span id="spread-percent" class="font-extrabold"></span>. This gives you more flexibility.</p>
+                <p>Because you have extra time before the TPP End Date, your weekly study pace has been eased by <span id="spread-percent" class="font-extrabold"></span>. This gives you more flexibility.</p>
             </div>
 
             <!-- Deadline Alert Message -->
             <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg" role="alert">
                 <p class="font-bold">DEADLINE ALERT: The TPP End Date is not possible.</p>
-                <p>Even with the fastest possible schedule, you cannot finish in time. **Action:** Please ask your trainer for an extension or choose an earlier assessment end date.</p>
+                <p>Even with the fastest possible schedule, you cannot finish in time. Action: Please ask your trainer for an extension or choose an earlier assessment end date.</p>
             </div>
         </div>
 
@@ -189,13 +188,13 @@
                 <thead class="bg-dapa-primary sticky top-0 z-10">
                     <tr>
                         <th scope="col" class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                            Assessment
+                            Task
                         </th>
                         <th scope="col" class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                            Description / Duration
+                            Description / Unit of Competency
                         </th>
                         <th scope="col" class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">
-                            Submission Date
+                            Latest Submission Date
                         </th>
                     </tr>
                 </thead>
@@ -905,7 +904,7 @@
                 // When the date is changed, clear the results display
                 document.getElementById('display-start-date').textContent = 'N/A';
                 document.getElementById('display-duration').textContent = 'N/A';
-                document.getElementById('timetable-body').innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Click **Generate Timetable** to see the new schedule.</td></tr>';
+                document.getElementById('timetable-body').innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Click Generate Timetable to see the new schedule.</td></tr>';
                 document.getElementById('display-end-date').textContent = courseEndDateInput.value ? formatDate(new Date(courseEndDateInput.value)) : 'N/A';
             });
 
