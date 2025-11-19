@@ -143,7 +143,7 @@
             <!-- Message 2: Aggressive Schedule -->
             <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg" role="alert">
                 <p class="font-bold">Less time available for your study.</p>
-                <p>Your study time has been compressed by <span id="aggressive-percent" class="font-extrabold">20%</span>. This schedule is tight and will need more commitment.</p>
+                <p>Your study time has been compressed by <span id="aggressive-percent" class="font-extrabold">20%</span>. This schedule is tight and requires **more commitment**.</p>
             </div>
             
             <!-- Message 1: Distributed Time -->
@@ -254,10 +254,6 @@
 
         /**
          * Converts a raw CSV string into an array of assessment objects.
-         * Assumes the following headers in order:
-         * UnitCode,UnitDescription,AssessmentName,AssessmentDescription,DaysRequired
-         * @param {string} csvText - The raw text content of the CSV file.
-         * @returns {Array<Object>} The parsed assessment data.
          */
         function parseCSV(csvText) {
             const lines = csvText.trim().split('\n');
@@ -293,8 +289,6 @@
                     return null;
                 }
             }).filter(item => item !== null && item.DaysRequired >= 0); // Filter out nulls and negative days
-
-            // NOTE: Removed the push for "Final Task: Course Completion" as requested by user.
 
             return data;
         }
@@ -699,20 +693,24 @@
             
             if (totalAvailableWorkingDays < totalRequiredDays) {
                 
-                // CASE 1: INSUFFICIENT TIME (Compression needed or Critical stretch)
+                // SCENARIO 1 & 2: INSUFFICIENT TIME (Compression needed or Critical stretch)
 
                 // Try Aggressive Compression (Ratio 0.8: 20% time reduction)
                 const AGGRESSIVE_RATIO = 0.8;
                 const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, AGGRESSIVE_RATIO);
                 
                 if (aggressiveResult.latestCalculatedStartDate < TODAY) {
-                    // Still stretched even after 20% compression. CRITICAL.
-                    finalResult = standardResult; // Show the original stretched schedule
+                    
+                    // SCENARIO 1: CRITICAL WARNING (Insufficient time even if compressed)
+                    // The deadline cannot be met. Show the standard stretched schedule for reference.
+                    finalResult = standardResult; 
                     finalResult.isCriticalStretch = true;
                     finalResult.distributionRatio = 1.0; 
                     
                 } else {
-                    // Success! Schedule works with 20% compression (Aggressive)
+                    
+                    // SCENARIO 2: AGGRESSIVE SCHEDULE (Sufficient time if compressed)
+                    // The compressed schedule works. Use it and display the aggressive warning.
                     finalResult = aggressiveResult;
                     
                     // Show Aggressive message and populate percentage
@@ -722,7 +720,7 @@
                 
             } else if (totalAvailableWorkingDays > totalRequiredDays) {
                 
-                // CASE 2: EXCESS TIME (Distribution needed)
+                // SCENARIO 3 & 4: EXCESS TIME (Distribution needed or Standard is fine)
                 
                 // Calculate the Distribution Ratio (R > 1.0)
                 const requiredVsAvailableRatio = totalAvailableWorkingDays / totalRequiredDays;
@@ -730,26 +728,31 @@
                 // Only distribute if we have more than 5% extra time
                 if (requiredVsAvailableRatio > 1.05) { 
                     
+                    // SCENARIO 4: DISTRIBUTED SCHEDULE (Lots of time and extended)
                     finalResult = calculateSchedule(data, courseAnchorDateStr, requiredVsAvailableRatio);
-                    finalResult.latestCalculatedStartDate = actualStartTime; // Force start date to TODAY/Next working day
+                    // For distributed schedules, we want the student to start NOW and stretch the work.
+                    finalResult.latestCalculatedStartDate = actualStartTime; 
                     finalResult.isDistributed = true;
-                    finalResult.distributionRatio = requiredVsAvailableRatio; // Use for display
+                    finalResult.distributionRatio = requiredVsAvailableRatio;
                     
                     // Show Distributed message and populate percentage
                     spreadPercentEl.textContent = `${Math.round((finalResult.distributionRatio - 1) * 100)}%`;
                     distributedTimeMessage.classList.remove('hidden');
                     
                 } else {
+                    
+                    // SCENARIO 3: STANDARD SCHEDULE (Sufficient time - no compression/extension required)
                     // Small amount of extra time (less than 5%): use standard schedule and treat as normal.
                     finalResult = standardResult;
                     if(isStandardScheduleInPast) {
-                        timePressureMessage.classList.remove('hidden'); // Show standard 'start immediately' message
+                        // If standard pace means the start date is in the past, show the time pressure warning.
+                        timePressureMessage.classList.remove('hidden'); 
                     }
                 }
                 
             } else {
                 
-                // CASE 3: EXACT TIME REQUIRED (Standard pace)
+                // SCENARIO 3: EXACT TIME REQUIRED (Standard pace)
                 finalResult = standardResult;
                 if (isStandardScheduleInPast) {
                     // If exactly required, but the start date is in the past, still show the pressure message
