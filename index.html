@@ -77,10 +77,10 @@
                 <p><strong>Student Name:</strong> <span id="print-info-name" class="font-semibold"></span></p>
                 <p><strong>Student Number:</strong> <span id="print-info-number" class="font-semibold"></span></p>
                 <p><strong>Calculated Start Date:</strong> <span id="display-start-date-print" class="font-semibold"></span></p>
-                <p><strong>Target End Date:</strong> <span id="display-end-date-print" class="font-semibold"></span></p>
+                <p><strong>TPP End Date:</strong> <span id="display-end-date-print" class="font-semibold"></span></p>
                 <p><strong>Total Duration:</strong> <span id="display-duration-print" class="font-semibold"></span></p>
             </div>
-            <p class="text-xs italic mt-2">This timetable is calculated based on the DAPA standard working week (5 days) and the Target Program Period (TPP) End Date.</p>
+            <p class="text-xs italic mt-2">This timetable is calculated based on the DAPA standard working week (5 days) and the TPP End Date.</p>
         </div>
 
         <!-- Student Details Form and Date Pickers -->
@@ -99,7 +99,7 @@
 
             <!-- TPP End Date -->
             <div class="col-span-1">
-                <label for="course-end-date" class="block text-sm font-medium text-gray-700">Target Program Period (TPP) End Date</label>
+                <label for="course-end-date" class="block text-sm font-medium text-gray-700">TPP End Date</label>
                 <input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border">
             </div>
 
@@ -142,7 +142,7 @@
             </div>
             <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg" role="alert">
                 <p class="font-bold">Time Distributed</p>
-                <p>The available time exceeds the standard duration. The schedule is distributed to spread the work over the full period, easing the workload by <span id="spread-percent" class="font-extrabold"></span>.</p>
+                <p>The available working days exceed the standard duration. The schedule is distributed to spread the work over the full period, easing the workload by <span id="spread-percent" class="font-extrabold"></span>.</p>
             </div>
             <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg" role="alert">
                 <p class="font-bold">CRITICAL WARNING: TPP End Date Unattainable</p>
@@ -539,7 +539,7 @@
                 
                 const submissionDate = nextSubmissionDate;
                 
-                // *** UPDATED: Using subtractDaysFromDate with DaysRequired ***
+                // Uses the daysRequired value, adjusted by the ratio, and excludes non-working days
                 const latestCommencementDate = subtractDaysFromDate(submissionDate, DaysRequired, distributionRatio);
                 
                 // Store data
@@ -548,7 +548,6 @@
                     UnitDescription,
                     AssessmentName,
                     AssessmentDescription,
-                    Weeks: `${Math.round(DaysRequired / 5)} weeks`, // Re-calculate for display only
                     DaysRequired,
                     distributionRatio: distributionRatio, 
                     SubmissionDate: submissionDate,
@@ -632,34 +631,49 @@
             endDateObj.setHours(12, 0, 0, 0); 
             const actualCourseEndDate = getPreviousValidDate(endDateObj); // Last possible submission day
 
-            const timeDiff = actualCourseEndDate.getTime() - TODAY.getTime();
-            let durationWeeks = 0;
-            if (timeDiff > 0) {
-                const dayDiff = timeDiff / (1000 * 60 * 60 * 24);
-                durationWeeks = Math.ceil(dayDiff / 7); 
+            // Calculate total working days remaining
+            const totalAvailableWorkingDays = getWorkingDaysBetween(TODAY, actualCourseEndDate);
+            
+            // --- NEW: Calculate and display duration in Weeks and Days ---
+            let durationDisplay;
+            if (totalAvailableWorkingDays > 0) {
+                const weeks = Math.floor(totalAvailableWorkingDays / 5);
+                const remainingDays = totalAvailableWorkingDays % 5;
+                
+                let parts = [];
+                if (weeks > 0) {
+                    parts.push(`${weeks} Week${weeks > 1 ? 's' : ''}`);
+                }
+                if (remainingDays > 0) {
+                    parts.push(`${remainingDays} Day${remainingDays > 1 ? 's' : ''}`);
+                }
+                durationDisplay = parts.join(' and ');
+                if (parts.length === 0) {
+                    durationDisplay = '0 Days';
+                }
+            } else {
+                durationDisplay = '0 Days';
             }
-            const durationDisplay = `${durationWeeks} Weeks Remaining`;
-
+            
             durationEl.textContent = durationDisplay;
             durationPrintEl.textContent = durationDisplay;
+            // --- END NEW: Weeks and Days calculation ---
 
             desiredEndDateEl.textContent = formatDate(endDateObj);
             desiredEndDatePrintEl.textContent = formatDate(endDateObj);
             
             // --- SCHEDULING LOGIC START ---
             let finalResult;
-            let totalRequiredDays = getTotalRequiredDays(data); // Pass data here
+            let totalRequiredDays = getTotalRequiredDays(data); 
             let actualStartTime = getNextValidDate(TODAY); // The date the course will realistically start
 
             // 1. Run Standard Calculation (Ratio 1.0) to see where it starts
             const standardResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
             const standardCalculatedStartDate = standardResult.latestCalculatedStartDate;
 
-            // --- Available Days Calculation ---
-            const totalAvailableDays = getWorkingDaysBetween(actualStartTime, actualCourseEndDate);
             const isStandardScheduleInPast = standardCalculatedStartDate < TODAY;
             
-            if (totalAvailableDays < totalRequiredDays) {
+            if (totalAvailableWorkingDays < totalRequiredDays) {
                 
                 // CASE 1: INSUFFICIENT TIME (Compression needed or Critical stretch)
 
@@ -670,7 +684,7 @@
                     // Still stretched even after 20% compression. CRITICAL.
                     finalResult = standardResult; // Show the original stretched schedule
                     finalResult.isCriticalStretch = true;
-                    finalResult.distributionRatio = 1.0; // Ensure ratio is correctly marked
+                    finalResult.distributionRatio = 1.0; 
                     
                 } else {
                     // Success! Schedule works with 20% compression (Aggressive)
@@ -678,18 +692,18 @@
                     aggressiveMessage.classList.remove('hidden');
                 }
                 
-            } else if (totalAvailableDays > totalRequiredDays) {
+            } else if (totalAvailableWorkingDays > totalRequiredDays) {
                 
                 // CASE 2: EXCESS TIME (Distribution needed)
                 
                 // Calculate the Distribution Ratio (R > 1.0)
-                const requiredVsAvailableRatio = totalAvailableDays / totalRequiredDays;
+                const requiredVsAvailableRatio = totalAvailableWorkingDays / totalRequiredDays;
                 
                 // Only distribute if we have more than 5% extra time
                 if (requiredVsAvailableRatio > 1.05) { 
                     
                     finalResult = calculateSchedule(data, courseAnchorDateStr, requiredVsAvailableRatio);
-                    finalResult.latestCalculatedStartDate = actualStartTime; // Force start date to TODAY
+                    finalResult.latestCalculatedStartDate = actualStartTime; // Force start date to TODAY/Next working day
                     finalResult.isDistributed = true;
                     finalResult.distributionRatio = requiredVsAvailableRatio; // Use for display
                     
@@ -765,18 +779,24 @@
 
                 row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
                 
-                let durationText = `${item.DaysRequired} working days (${(item.DaysRequired/5).toFixed(1)} weeks)`;
-                
-                if (item.DaysRequired === 0) {
-                    durationText = `0 days (Immediate Submission/Check-in)`;
+                // --- Updated Duration Text to only use Working Days ---
+                let durationText;
+                const baseDays = item.DaysRequired;
+
+                if (baseDays === 0) {
+                    durationText = `0 working days (Immediate Submission/Check-in)`;
                 } else if (item.distributionRatio !== 1.0) {
                     const changePercent = Math.round(Math.abs(item.distributionRatio - 1) * 100);
                     const action = item.distributionRatio < 1.0 ? 'Compressed' : 'Distributed';
+                    const adjustedDays = getAdjustedDays(baseDays, item.distributionRatio);
                     
-                    // Display specific percentage
-                    durationText = `${action} (${changePercent}% change) from ${item.DaysRequired} days`;
+                    // Display specific percentage and the resulting total days for the task
+                    durationText = `Adjusted: ${adjustedDays} working days (${action} by ${changePercent}%)`;
+                } else {
+                    durationText = `${baseDays} working days (Standard Pace)`;
                 }
-                
+                // --- End Updated Duration Text ---
+
                 let submissionCellContent = dateString;
                 let submissionCellClasses = isPastDue ? 'text-red-600' : 'text-green-600';
                 
