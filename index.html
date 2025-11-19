@@ -458,11 +458,9 @@
                     dataLoadStatusEl.classList.remove('text-gray-500');
                     dataLoadStatusEl.classList.add('text-green-600');
                     
-                    // Enable the button if TPP End Date is already set
+                    // Enable the button if TPP End Date is already set, but DO NOT auto-calculate
                     if (courseEndDateInput.value.trim()) {
                         generateButton.disabled = false;
-                        // Automatically calculate if the date was already set when data arrived
-                        handleGenerateTimetable(new Event('submit')); 
                     }
                     
                     // Update initial table content
@@ -877,16 +875,17 @@
             }
             
             // Listener to automatically enable the button when a date is selected, 
-            // provided the data has already loaded
+            // provided the data has already loaded. REMOVED AUTO-CALCULATION HERE.
             courseEndDateInput.addEventListener('change', () => {
                 const isDateSelected = courseEndDateInput.value.trim() !== '';
                 const isDataLoaded = timetableData.length > 0; 
                 generateButton.disabled = !(isDateSelected && isDataLoaded);
                 
-                // If data is loaded, automatically run calculation on date change
-                if (isDateSelected && isDataLoaded) {
-                     handleGenerateTimetable(new Event('submit')); 
-                }
+                // When the date is changed, clear the results display
+                document.getElementById('display-start-date').textContent = 'N/A';
+                document.getElementById('display-duration').textContent = 'N/A';
+                document.getElementById('timetable-body').innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Click **Generate Timetable** to see the new schedule.</td></tr>';
+                document.getElementById('display-end-date').textContent = courseEndDateInput.value ? formatDate(new Date(courseEndDateInput.value)) : 'N/A';
             });
 
             // Start data loading process immediately
