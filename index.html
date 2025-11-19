@@ -32,6 +32,21 @@
         .container {
             max-width: 1000px;
         }
+        
+        /* Input Field Styling */
+        .info-input {
+            border: 1px solid #D1D5DB; /* light gray border */
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem; /* rounded-md */
+            width: 100%;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        .info-input:focus {
+            border-color: var(--dapa-primary);
+            outline: 0;
+            box-shadow: 0 0 0 3px rgba(83, 42, 140, 0.25); /* Primary color shadow for focus */
+        }
+
         /* Print styles */
         @media print {
             .no-print {
@@ -49,18 +64,59 @@
             }
             /* Ensure text is black for printing */
             .text-dapa-primary { color: #000 !important; }
+
+            /* Style inputs for printing: make them look like text */
+            .print-field {
+                border: none !important;
+                border-bottom: 1px solid #000 !important; /* Underline effect */
+                padding: 0;
+                display: inline-block;
+                color: #000;
+                font-weight: 600; /* Semibold for visibility */
+            }
+            .print-label {
+                font-weight: 400; /* Normal weight for label */
+                color: #333;
+            }
         }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
     <div class="container mx-auto">
-        <header class="text-center mb-10 no-print">
+        <header class="text-center mb-6 no-print">
             <h1 class="text-4xl md:text-5xl font-extrabold text-dapa-primary tracking-tight mb-2">
                 HLT35021 Assessment Timetable
             </h1>
             <p class="text-lg text-gray-600">Dynamic Planning, Assessment, and Reporting (DAPA)</p>
         </header>
+
+        <!-- Student Info Fields (New Section) -->
+        <div class="bg-white p-4 rounded-xl shadow mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <!-- Student Name -->
+                <div class="flex flex-col">
+                    <label for="student-name" class="print-label text-sm font-medium text-gray-700 mb-1">Student Name</label>
+                    <input type="text" id="student-name" placeholder="Enter student's full name" 
+                           class="info-input print-field">
+                </div>
+                
+                <!-- Student Number -->
+                <div class="flex flex-col">
+                    <label for="student-number" class="print-label text-sm font-medium text-gray-700 mb-1">Student Number</label>
+                    <input type="text" id="student-number" placeholder="Enter student number" 
+                           class="info-input print-field">
+                </div>
+                
+                <!-- Date of Review (Current Date) -->
+                <div class="flex flex-col">
+                    <label for="review-date" class="print-label text-sm font-medium text-gray-700 mb-1">Date of Review</label>
+                    <input type="date" id="review-date" 
+                           class="info-input print-field">
+                </div>
+            </div>
+        </div>
 
         <!-- Current User Display for Debugging -->
         <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 p-3 rounded-lg mb-4 text-sm no-print">
@@ -124,10 +180,10 @@
         // apiKey, authDomain, projectId, and appId
         // --- START CONFIG BLOCK ---
         firebaseConfig = {
-             apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M", 
-             authDomain: "dapa-firestore.firebaseapp.com",
-             projectId: "dapa-firestore",
-             appId: "1:718243284686:web:4345e933c66d888506b29f"
+            // apiKey: "YOUR_API_KEY", 
+            // authDomain: "your-project.firebaseapp.com",
+            // projectId: "your-project-id",
+            // appId: "1:1234567890:web:abcdef123456"
         };
         // --- END CONFIG BLOCK ---
         // -------------------------------------------------------------------------
@@ -137,6 +193,22 @@
         let db, auth;
 
         // --- CORE FUNCTIONS ---
+
+        /**
+         * Sets the Date of Review input field to the current date.
+         */
+        function setInitialReviewDate() {
+            const dateInput = document.getElementById('review-date');
+            // Check if the element exists and if it's currently empty
+            if (dateInput && !dateInput.value) {
+                const today = new Date();
+                const year = today.getFullYear();
+                // Month is 0-indexed, so add 1 and pad with zero
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${year}-${month}-${day}`;
+            }
+        }
         
         /**
          * Loads mock data for the timetable. This function is now the only way
@@ -244,6 +316,9 @@
                 setLogLevel('debug');
                 console.log("--- STARTING FIREBASE INITIALIZATION ---");
                 
+                // ❗ Set the default date immediately upon loading, before async calls
+                setInitialReviewDate(); 
+
                 // Check if the config object is empty (user didn't paste anything)
                 if (Object.keys(firebaseConfig).length < 4) { // Check for minimum required keys
                     const warnMsg = "Firebase configuration object is incomplete or empty. Please ensure you have apiKey, authDomain, projectId, and appId.";
