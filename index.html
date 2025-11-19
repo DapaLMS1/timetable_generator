@@ -82,7 +82,7 @@
                 <p><strong>TPP End Date:</strong> <span id="display-end-date-print" class="font-semibold"></span></p>
                 <p><strong>Total Duration:</strong> <span id="display-duration-print" class="font-semibold"></span></p>
             </div>
-            <p class="text-xs italic mt-2">This timetable is calculated based on a standard working week (5 days) from the TPP End Date.</p>
+            <p class="text-xs italic mt-2">This timetable is calculated based on the DAPA standard working week (5 days) and the TPP End Date.</p>
         </div>
 
         <!-- Control Panel Form -->
@@ -146,9 +146,10 @@
                 <p class="font-bold">Aggressive Schedule Applied</p>
                 <p>The timetable has been compressed by **20%** to fit the available time. This schedule is tight and requires high commitment.</p>
             </div>
+            <!-- UPDATED MESSAGE CONTENT HERE -->
             <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg" role="alert">
-                <p class="font-bold">Time Distributed</p>
-                <p>The available working days exceed the standard duration. The schedule is distributed to spread the work over the full period, easing the workload by <span id="spread-percent" class="font-extrabold"></span>.</p>
+                <p class="font-bold">More time available for your studies</p>
+                <p>The timetable has been extended due to a longer end date. You now have more study time by <span id="spread-percent" class="font-extrabold"></span>.</p>
             </div>
             <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg" role="alert">
                 <p class="font-bold">CRITICAL WARNING: TPP End Date Unattainable</p>
@@ -736,6 +737,7 @@
                     finalResult.isDistributed = true;
                     finalResult.distributionRatio = requiredVsAvailableRatio; // Use for display
                     
+                    // Update spread percentage in the new friendly message
                     distributedTimeMessage.querySelector('#spread-percent').textContent = `${Math.round((finalResult.distributionRatio - 1) * 100)}%`;
                     distributedTimeMessage.classList.remove('hidden');
                     
