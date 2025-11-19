@@ -83,7 +83,7 @@
             <p class="text-xs italic mt-2">This timetable is calculated based on the DAPA standard working week (5 days) and the TPP End Date.</p>
         </div>
 
-        <!-- Control Panel Form (RESTORED) -->
+        <!-- Control Panel Form -->
         <form id="timetable-controls-form" class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-dapa-background rounded-lg shadow-inner">
             
             <!-- Student Name -->
@@ -117,7 +117,7 @@
             </div>
         </form>
 
-        <!-- Dynamic Information Display (RESTORED) -->
+        <!-- Dynamic Information Display -->
         <div class="mb-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-center border-t border-b py-4">
             <div>
                 <p class="text-xs text-gray-500 font-medium">TPP End Date</p>
@@ -133,20 +133,20 @@
             </div>
         </div>
 
-        <!-- Alert and Warning Messages (UPDATED) -->
+        <!-- Alert and Warning Messages -->
         <div class="no-print space-y-3 mb-6">
             <div id="time-pressure-message" class="hidden p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg" role="alert">
                 <p class="font-bold">Immediate Action Required</p>
                 <p>The calculated commencement date is **before today**. You must begin immediately to meet the TPP End Date at a standard pace.</p>
             </div>
             
-            <!-- Message 2: Aggressive Schedule (UPDATED TEXT) -->
+            <!-- Message 2: Aggressive Schedule -->
             <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg" role="alert">
                 <p class="font-bold">Less time available for your study.</p>
-                <p>Your study time has been compressed by <span id="aggressive-percent" class="font-extrabold">20%</span>. This schedule is tight and requires **more commitment**.</p>
+                <p>Your study time has been compressed by <span id="aggressive-percent" class="font-extrabold">20%</span>. This schedule is tight and will need more commitment.</p>
             </div>
             
-            <!-- Message 1: Distributed Time (PREVIOUSLY UPDATED TEXT) -->
+            <!-- Message 1: Distributed Time -->
             <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg" role="alert">
                 <p class="font-bold">More time available for your studies</p>
                 <p>The timetable has been extended due to a longer end date. You now have more study time by <span id="spread-percent" class="font-extrabold"></span>.</p>
@@ -200,7 +200,7 @@
         </div>
     </div>
 
-    <!-- JavaScript Logic (RESTORED DYNAMIC LOGIC) -->
+    <!-- JavaScript Logic -->
     <script>
         // =========================================================================
         // --- DATA AND STATE ---
@@ -294,14 +294,7 @@
                 }
             }).filter(item => item !== null && item.DaysRequired >= 0); // Filter out nulls and negative days
 
-            // Add the final check-in task to complete the schedule
-            data.push({
-                UnitCode: "Final Task",
-                UnitDescription: "Course Completion",
-                AssessmentName: "Final Check",
-                AssessmentDescription: "Submission of all course requirements/logbook checks",
-                DaysRequired: 0
-            });
+            // NOTE: Removed the push for "Final Task: Course Completion" as requested by user.
 
             return data;
         }
@@ -414,7 +407,7 @@
             let daysToSubtract = requiredWorkingDays - 1; // Already accounted for 1 day in getPreviousValidDate
             
             if (requiredWorkingDays === 0) {
-                // If it's a 0-day task (like the Final Check), it starts on the previous task's submission day
+                // If it's a 0-day task, anchor to the previous valid date
                 return currentDate; 
             }
 
@@ -462,9 +455,9 @@
                 const csvText = await response.text();
                 const parsedData = parseCSV(csvText);
                 
-                if (parsedData.length > 1) { // > 1 accounts for the mandatory final task
+                if (parsedData.length > 0) {
                     timetableData = parsedData;
-                    dataLoadStatusEl.textContent = `Successfully loaded ${parsedData.length - 1} assessment tasks.`;
+                    dataLoadStatusEl.textContent = `Successfully loaded ${parsedData.length} assessment tasks.`;
                     dataLoadStatusEl.classList.remove('text-gray-500');
                     dataLoadStatusEl.classList.add('text-green-600');
                     
@@ -545,8 +538,8 @@
                 showMessage("Please select a TPP End Date.", true);
                 return;
             }
-            if (timetableData.length <= 1) { // Must be greater than 1 to include actual tasks (not just Final Check)
-                 showMessage("Assessment data not loaded. Please ensure the CSV file is accessible.", true);
+            if (timetableData.length === 0) {
+                 showMessage("Assessment data not loaded or empty. Please ensure the CSV file is accessible.", true);
                  return;
             }
 
@@ -661,7 +654,7 @@
             container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Assessment data loaded. Select TPP End Date and click Generate.</td></tr>';
             
             // Check if data is loaded or if anchor date is set
-            if (data.length <= 1 || !courseAnchorDateStr) {
+            if (data.length === 0 || !courseAnchorDateStr) {
                  return;
             }
             
@@ -820,7 +813,8 @@
                 const baseDays = item.DaysRequired;
 
                 if (baseDays === 0) {
-                    durationText = `0 working days (Immediate Submission/Check-in)`;
+                    // Retaining this for 0-day assessments that might come from the CSV
+                    durationText = `0 working days (Immediate Submission)`;
                 } else if (item.distributionRatio !== 1.0) {
                     const changePercent = Math.round(Math.abs(item.distributionRatio - 1) * 100);
                     const action = item.distributionRatio < 1.0 ? 'Compressed' : 'Distributed';
@@ -847,7 +841,7 @@
                     </td>
                     <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${submissionCellClasses} w-4/12">
                         ${submissionCellContent}
-                        ${isPastDue && item.AssessmentName !== 'Final Check' ? '<p class="text-xs font-medium text-red-500">Insufficient Time</p>' : ''}
+                        ${isPastDue ? '<p class="text-xs font-medium text-red-500">Insufficient Time</p>' : ''}
                     </td>
                 `;
                 container.appendChild(row);
@@ -876,7 +870,7 @@
             // provided the data has already loaded
             courseEndDateInput.addEventListener('change', () => {
                 const isDateSelected = courseEndDateInput.value.trim() !== '';
-                const isDataLoaded = timetableData.length > 1; 
+                const isDataLoaded = timetableData.length > 0; 
                 generateButton.disabled = !(isDateSelected && isDataLoaded);
                 
                 // If data is loaded, automatically run calculation on date change
