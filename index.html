@@ -216,6 +216,7 @@
          */
         function loadMockData() {
             console.warn("Using mock data. To connect to Firestore, replace the placeholder config with your actual Firebase project keys.");
+            // Mock data structure, replacing the old hardcoded array
             const mockAssessments = [
                 { unitCode: 'HLT35021', unitName: 'Dynamic Planning', type: 'Assignment 1', date: '2024-11-20' },
                 { unitCode: 'COMM101', unitName: 'Effective Communication', type: 'Presentation', date: '2024-12-05' },
@@ -227,7 +228,7 @@
              document.getElementById('timetable-body').innerHTML += `
                 <tr>
                     <td colspan="3" class="p-2 text-center text-sm font-bold text-blue-700 bg-blue-100/50">
-                        <p class="font-bold">MOCK DATA DISPLAYED</p>
+                        <p class="font-bold">MOCK DATA DISPLAYED (Config Missing)</p>
                         <p class="text-xs">Data is not persistent. Replace the config block for real data.</p>
                     </td>
                 </tr>
@@ -271,6 +272,7 @@
             
             // Sort assessments by date. We sort client-side.
             assessments.sort((a, b) => {
+                // Ensure date values are parsed correctly, treating Firestore timestamps or strings
                 const dateA = new Date(a.date);
                 const dateB = new Date(b.date);
                 return dateA - dateB;
@@ -280,7 +282,7 @@
                 timetableBody.innerHTML = `
                     <tr>
                         <td colspan="3" class="p-8 text-center text-gray-500">
-                            No assessments found for this user. Add one to get started!
+                            No assessments found for this user. Data is loaded from Firestore.
                         </td>
                     </tr>
                 `;
@@ -288,9 +290,16 @@
             }
 
             timetableBody.innerHTML = assessments.map(assessment => {
-                const formattedDate = new Date(assessment.date).toLocaleDateString('en-AU', {
-                    day: '2-digit', month: 'short', year: 'numeric'
-                });
+                // Use a try-catch for date formatting in case the data is malformed
+                let formattedDate = assessment.date || 'N/A';
+                try {
+                    formattedDate = new Date(assessment.date).toLocaleDateString('en-AU', {
+                        day: '2-digit', month: 'short', year: 'numeric'
+                    });
+                } catch (e) {
+                    console.error("Error formatting date:", assessment.date, e);
+                    formattedDate = assessment.date; // Fallback to raw value
+                }
 
                 return `
                     <tr class="hover:bg-gray-50 transition duration-150">
@@ -309,21 +318,21 @@
         }
 
         /**
-         * Initializes Firebase and sets up the Firestore listener.
+         * Initializes Firebase and sets up the Firestore listener. This function
+         * replaces the reliance on the hardcoded UNIT_ASSESSMENT_DATA.
          */
         async function initFirebaseAndLoadData() {
             try {
                 setLogLevel('debug');
                 console.log("--- STARTING FIREBASE INITIALIZATION ---");
                 
-                // ❗ Set the default date immediately upon loading, before async calls
+                // Set the default date immediately upon loading
                 setInitialReviewDate(); 
 
                 // Check if the config object is empty (user didn't paste anything)
                 if (Object.keys(firebaseConfig).length < 4) { // Check for minimum required keys
                     const warnMsg = "Firebase configuration object is incomplete or empty. Please ensure you have apiKey, authDomain, projectId, and appId.";
                     console.warn(`⚠️ ${warnMsg}`);
-                    // Fallback to hardcoded/mock data if config is missing
                     loadMockData(); 
                     return;
                 }
@@ -343,25 +352,21 @@
                 if (initialAuthToken && typeof initialAuthToken === 'string' && initialAuthToken.length > 0) {
                     try {
                         await signInWithCustomToken(auth, initialAuthToken);
-                        console.log(`Attempting sign-in with custom token...`);
                         signInSuccessful = true;
                     } catch (authError) {
-                        // Catch error, fall back to Anonymous sign-in.
-                        console.warn(`⚠️ Custom Token Sign-in Failed (Code: ${authError.code || 'Unknown'}). Falling back to Anonymous Sign-in.`, authError.message);
+                        console.warn(`⚠️ Custom Token Sign-in Failed. Falling back to Anonymous Sign-in.`, authError.message);
                     }
                 }
 
-                // 2b. Fallback to Anonymous Sign-in if custom sign-in was not attempted or failed
+                // 2b. Fallback to Anonymous Sign-in
                 if (!signInSuccessful) {
                     await signInAnonymously(auth);
-                    console.log(`Attempting anonymous sign-in...`);
                 }
 
                 const userId = auth.currentUser?.uid || 'N/A';
                 
                 if (auth.currentUser) {
                      document.getElementById('auth-status').textContent = `✅ Success (UID: ${userId})`;
-                     console.log(`✅ Authentication Successful. User ID: ${userId}`);
                 } else {
                      throw new Error("Authentication failed. User object is null after sign-in attempt.");
                 }
@@ -376,7 +381,7 @@
 
                 const q = collection(db, collectionPath);
 
-                // Use onSnapshot with an explicit error callback for verbose debugging
+                // Use onSnapshot for real-time data
                 const unsubscribe = onSnapshot(q, (snapshot) => {
                     console.log(`📥 Received data snapshot. Total documents: ${snapshot.docs.length}`);
                     
@@ -386,14 +391,13 @@
                     }));
 
                     updateTimetable(assessments);
-                    console.log("✅ Timetable updated successfully.");
+                    console.log("✅ Timetable updated successfully from Firestore.");
                 }, 
                 // CRUCIAL: Error callback for the listener
                 (error) => {
                     console.error("❌ Firestore Listener FAILED!", error);
                     let errorMessage = error.message;
 
-                    // Provide detailed advice on permission-denied errors
                     if (error.code === 'permission-denied') {
                         errorMessage += " (Check Firestore Security Rules for path access: 'artifacts/{appId}/users/{userId}/assessments')";
                     }
