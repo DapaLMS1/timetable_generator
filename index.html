@@ -198,8 +198,7 @@
         import { getFirestore, doc, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         // =========================================================================
-        // --- CUSTOM CONFIGURATION FOR LOCAL RUNNING (Now with user's specific config) ---
-        // This configuration is used as a fallback if the Canvas environment variables are missing.
+        // --- CUSTOM CONFIGURATION FOR LOCAL RUNNING ---
         // =========================================================================
         const DUMMY_FIREBASE_CONFIG = {
             apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M",
@@ -220,6 +219,7 @@
         let auth;
         let userId = null;
         let isSavingEnabled = true;
+        let timetableData = []; // New global variable to hold parsed CSV data
 
         // Normalize Today's Date to midday for clean comparison (to avoid timezone issues at midnight)
         const TODAY = (() => {
@@ -228,52 +228,6 @@
             d.setHours(12, 0, 0, 0); 
             return d;
         })();
-
-        // --- Data Source for Assessments ---
-        const UNIT_ASSESSMENT_DATA = [
-            // Note: The structure is designed to estimate total days/weeks required.
-            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Student Onboarding Activities', AssessmentDescription: 'Completion of required enrolment, system access, and introductory setup.', Weeks: '2 weeks' },
-            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction with DAPA Meeting', Weeks: '0 week' },
-            
-            { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 1', AssessmentDescription: 'The Dental Health Team', Weeks: '1 week' },
-            { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 2', AssessmentDescription: 'Ethics and Jurisprudence', Weeks: '1 week' },
-            { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 3', AssessmentDescription: 'Psychology for Dental Assistants', Weeks: '0 week' },
-            { UnitCode: 'CHCDIV001', UnitDescription: 'Work with diverse people', AssessmentName: 'Task 4', AssessmentDescription: 'Demonstrate understanding of diversity, culture, and inclusive practice.', Weeks: '1 week' },
-            { UnitCode: 'CHCDIV001', UnitDescription: 'Work with diverse people', AssessmentName: 'Task 5', AssessmentDescription: 'Apply inclusive and respectful communication and work practices.', Weeks: '1 week' },
-            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate essential WHS knowledge', Weeks: '1 week' },
-            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 2', AssessmentDescription: 'Identify, assess, and control hazards', Weeks: '0 week' },
-            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in WHS activities and follow emergency procedures', AssessmentName: 'Task 3', AssessmentDescription: 'Participate in WHS activities and follow emergency procedures', Weeks: '1 week' },
-            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate understanding of infection control principles', Weeks: '1 week' },
-            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 2', AssessmentDescription: 'Identify infection risks and select/use Personal Protective Equipment (PPE)', Weeks: '1 week' },
-            { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
-            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 4', AssessmentDescription: 'Final assessment for Infection Control', Weeks: '0 week' },
-            
-            { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 5', AssessmentDescription: 'Drying, Inspection, and Packaging', Weeks: '1 week' },
-            { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 6', AssessmentDescription: 'Operating the Steriliser (Autoclave)', Weeks: '0 week' },
-            
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 1', AssessmentDescription: 'Foundational Clinic & Communication', Weeks: '5 weeks' },
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 1', AssessmentDescription: 'Communicate appropriately in a dental administrative setting', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 3', AssessmentDescription: 'Process and reconcile patient accounts', Weeks: '1 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 4', AssessmentDescription: 'Maintain patient records', Weeks: '0 week' },
-            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with patient recalls', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
-            { UnitCode: 'BSBTEC201', UnitCode: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
-            { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
-            { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentDescription: 'Reflective journal', Weeks: '1 week' },
-            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
-            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid in the Dental Setting', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
-            
-            { UnitCode: 'FINISH', UnitDescription: 'Course Completion', AssessmentName: 'Final Task', AssessmentDescription: 'Trainer Assessment and Review', Weeks: '2 weeks' },
-        ];
 
         // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
         const PUBLIC_HOLIDAYS = [
@@ -300,6 +254,54 @@
             setTimeout(() => { box.innerHTML = ''; }, 5000);
         };
 
+        // --- CSV Loading and Parsing ---
+        /**
+         * Fetches and parses the TIMETABLE_DATA.csv file.
+         * The CSV columns are: "Unit Code", "Unit Description", "Assessment", "Assessment Description", "Days Required"
+         */
+        async function loadTimetableData() {
+            try {
+                // Fetch the CSV file
+                const response = await fetch('TIMETABLE_DATA.csv');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const csvText = await response.text();
+                
+                // Simple CSV parsing: split by line, then process data lines.
+                const lines = csvText.trim().split('\n');
+                if (lines.length < 2) {
+                    throw new Error("CSV file is empty or only contains headers.");
+                }
+                
+                // Headers are assumed to be the first line, and values are always quoted
+                const headers = ["UnitCode", "UnitDescription", "AssessmentName", "AssessmentDescription", "DaysRequired"];
+                
+                // Map the rows to objects, handling quoted values.
+                const data = lines.slice(1).map(line => {
+                    // Simple regex to split based on comma, but respects quoted fields
+                    const values = line.match(/(?:\"([^\"]*)\"|([^\",]+))/g).map(v => v.replace(/^"|"$/g, '').trim());
+                    
+                    const item = {};
+                    headers.forEach((header, index) => {
+                        item[header] = values[index];
+                    });
+                    
+                    // Convert DaysRequired to integer immediately
+                    item.DaysRequired = parseInt(item.DaysRequired, 10);
+                    return item;
+                });
+                
+                timetableData = data;
+                console.log(`Timetable data loaded successfully: ${timetableData.length} entries.`);
+
+            } catch (e) {
+                console.error("Failed to load or parse TIMETABLE_DATA.csv:", e);
+                showMessage("Failed to load assessment data from CSV. Using an empty schedule.", true);
+                timetableData = [];
+            }
+        }
+        
         // --- Date Calculation Helpers ---
 
         /**
@@ -372,17 +374,15 @@
         }
 
         /**
-         * Converts a "X week(s)" string into an integer number of working days, 
+         * Converts a base number of working days into an integer number of working days, 
          * applying a dynamic stretch/compression ratio.
-         * @param {string} weeksStr - The duration string (e.g., "1 week").
+         * @param {number} baseDays - The original duration in working days.
          * @param {number} [distributionRatio=1.0] - Ratio: > 1.0 distributes time, < 1.0 compresses time.
-         * @returns {number} The duration in working days.
+         * @returns {number} The adjusted duration in working days.
          */
-        function getDaysFromWeeks(weeksStr, distributionRatio = 1.0) {
-            const match = weeksStr.match(/(\d+)/);
-            const weeks = match ? parseInt(match[1], 10) : 0;
-            const baseDays = weeks * 5; // Use 5 working days per week
-
+        function getAdjustedDays(baseDays, distributionRatio = 1.0) {
+            // baseDays is already an integer from the CSV parsing
+            
             // Apply the ratio (1.2 for 20% distribution, 0.8 for 20% compression)
             let days = Math.round(baseDays * distributionRatio);
             
@@ -395,24 +395,25 @@
 
         /**
          * Calculates the total required working days for the entire schedule (at standard pace).
+         * @param {Array} data - The assessment data.
          * @returns {number} The total number of working days.
          */
-        function getTotalRequiredDays() {
-            return UNIT_ASSESSMENT_DATA.reduce((total, item) => {
-                // Use a distributionRatio of 1.0 (standard pace)
-                return total + getDaysFromWeeks(item.Weeks, 1.0);
+        function getTotalRequiredDays(data) {
+            return data.reduce((total, item) => {
+                // Use 1.0 ratio for standard calculation
+                return total + getAdjustedDays(item.DaysRequired, 1.0);
             }, 0);
         }
 
         /**
          * Subtracts a specified number of *working* days from a base Date object (backward scheduling).
          * @param {Date} baseDate - The Date object to start from (the next submission date).
-         * @param {string} weeksStr - The duration string.
-         * @param {number} [distributionRatio=1.0] - The factor to multiply weeks by.
+         * @param {number} daysRequired - The base duration in working days (from CSV).
+         * @param {number} [distributionRatio=1.0] - The factor to multiply days by.
          * @returns {Date} The calculated commencement date.
          */
-        function subtractWeeksFromDate(baseDate, weeksStr, distributionRatio = 1.0) {
-            const requiredWorkingDays = getDaysFromWeeks(weeksStr, distributionRatio);
+        function subtractDaysFromDate(baseDate, daysRequired, distributionRatio = 1.0) {
+            const requiredWorkingDays = getAdjustedDays(daysRequired, distributionRatio);
             
             // Start from the day *before* the submission date for the prior task
             let currentDate = getPreviousValidDate(baseDate); 
@@ -420,7 +421,7 @@
             let daysToSubtract = requiredWorkingDays - 1; // Already accounted for 1 day in getPreviousValidDate
             
             if (requiredWorkingDays === 0) {
-                return currentDate; // 0-week tasks submit on the previous task's submission day
+                return currentDate; // 0-day tasks submit on the previous task's submission day
             }
 
             while (daysToSubtract > 0) {
@@ -447,8 +448,9 @@
         // --- Firebase Functions ---
 
         async function loadStudentDetails() {
+            // Use timetableData which is now a global variable
             if (!isSavingEnabled || !userId || !db) {
-                renderTimetable(UNIT_ASSESSMENT_DATA); 
+                renderTimetable(timetableData); 
                 return;
             }
 
@@ -470,11 +472,11 @@
                 } else {
                     console.log("No student details found. Using defaults/empty.");
                 }
-                renderTimetable(UNIT_ASSESSMENT_DATA);
+                renderTimetable(timetableData);
             } catch (e) {
                 console.error("Error loading student details.", e);
                 showMessage("Failed to load student details.", true);
-                renderTimetable(UNIT_ASSESSMENT_DATA);
+                renderTimetable(timetableData);
             }
         } 
 
@@ -494,7 +496,7 @@
             };
             
             studentDetails = newDetails;
-            renderTimetable(UNIT_ASSESSMENT_DATA);
+            renderTimetable(timetableData); // Use the global timetableData
 
             if (!isSavingEnabled || !userId || !db) {
                 showMessage("Calculation complete. Cannot save data with dummy Firebase configuration.", true);
@@ -533,12 +535,12 @@
             const tempSchedule = [];
 
             for (const item of reversedData) {
-                const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, Weeks } = item;
+                const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, DaysRequired } = item;
                 
                 const submissionDate = nextSubmissionDate;
                 
-                // Calculate the commencement date for this task 
-                const latestCommencementDate = subtractWeeksFromDate(submissionDate, Weeks, distributionRatio);
+                // *** UPDATED: Using subtractDaysFromDate with DaysRequired ***
+                const latestCommencementDate = subtractDaysFromDate(submissionDate, DaysRequired, distributionRatio);
                 
                 // Store data
                 tempSchedule.push({
@@ -546,7 +548,8 @@
                     UnitDescription,
                     AssessmentName,
                     AssessmentDescription,
-                    Weeks: item.Weeks, 
+                    Weeks: `${Math.round(DaysRequired / 5)} weeks`, // Re-calculate for display only
+                    DaysRequired,
                     distributionRatio: distributionRatio, 
                     SubmissionDate: submissionDate,
                 });
@@ -581,8 +584,8 @@
             const timePressureMessage = document.getElementById('time-pressure-message');
             const aggressiveMessage = document.getElementById('aggressive-message'); 
             const criticalWarningMessage = document.getElementById('critical-warning-message'); 
-            const distributedTimeMessage = document.getElementById('distributed-time-message'); // Renamed
-
+            const distributedTimeMessage = document.getElementById('distributed-time-message');
+            
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
             
@@ -603,7 +606,7 @@
             timePressureMessage.classList.add('hidden');
             aggressiveMessage.classList.add('hidden'); 
             criticalWarningMessage.classList.add('hidden');
-            distributedTimeMessage.classList.add('hidden'); // Reset NEW message
+            distributedTimeMessage.classList.add('hidden');
             
             dateElements.forEach(el => {
                 el.classList.remove('text-red-600', 'text-green-600');
@@ -615,7 +618,12 @@
 
             calculatedSchedule = [];
             container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Enter your TPP End Date above to generate the schedule.</td></tr>';
-
+            
+            // Check if data is loaded or if anchor date is set
+            if (data.length === 0) {
+                 container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-red-500 font-bold">Error: Assessment data not loaded or empty.</td></tr>';
+                 return;
+            }
             if (!courseAnchorDateStr) {
                 return;
             }
@@ -640,8 +648,7 @@
             
             // --- SCHEDULING LOGIC START ---
             let finalResult;
-            let distributionRatio = 1.0;
-            let totalRequiredDays = getTotalRequiredDays();
+            let totalRequiredDays = getTotalRequiredDays(data); // Pass data here
             let actualStartTime = getNextValidDate(TODAY); // The date the course will realistically start
 
             // 1. Run Standard Calculation (Ratio 1.0) to see where it starts
@@ -758,14 +765,16 @@
 
                 row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
                 
-                let durationText = item.Weeks;
+                let durationText = `${item.DaysRequired} working days (${(item.DaysRequired/5).toFixed(1)} weeks)`;
                 
-                if (item.distributionRatio !== 1.0) {
+                if (item.DaysRequired === 0) {
+                    durationText = `0 days (Immediate Submission/Check-in)`;
+                } else if (item.distributionRatio !== 1.0) {
                     const changePercent = Math.round(Math.abs(item.distributionRatio - 1) * 100);
                     const action = item.distributionRatio < 1.0 ? 'Compressed' : 'Distributed';
                     
                     // Display specific percentage
-                    durationText = `${action} (${changePercent}% change) from ${item.Weeks}`;
+                    durationText = `${action} (${changePercent}% change) from ${item.DaysRequired} days`;
                 }
                 
                 let submissionCellContent = dateString;
@@ -796,6 +805,9 @@
 
         // --- Initialization Function ---
         async function initApp() {
+             // 1. Load CSV data first
+            await loadTimetableData();
+
             try {
                 if (!db) {
                     const app = initializeApp(firebaseConfig);
@@ -829,7 +841,7 @@
                 console.error("Firebase initialization failed. Running in read-only/no-save mode.", e);
                 document.getElementById('display-user-id').textContent = 'N/A (No Save)';
                 showMessage("Saving/Loading is disabled: Firebase connection failed.", true);
-                renderTimetable(UNIT_ASSESSMENT_DATA);
+                renderTimetable(timetableData); // Use loaded data even if Firebase fails
             }
         }
 
