@@ -63,9 +63,7 @@
         
         <!-- Header -->
         <header class="text-center mb-8 pb-4 border-b-2 border-dapa-primary">
-            <!-- UPDATED HEADING -->
             <h1 class="text-3xl md:text-4xl font-extrabold text-dapa-primary">Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING</h1>
-            <!-- UPDATED SUBTITLE TO MATCH NEW HEADING (removed redundant title info) -->
             <p class="text-lg text-gray-600 mt-2">Assessment - Backward Scheduling</p>
         </header>
 
@@ -85,8 +83,7 @@
             <p class="text-xs italic mt-2">This timetable is calculated based on the DAPA standard working week (5 days) and the TPP End Date.</p>
         </div>
 
-        <!-- Control Panel Form -->
-        <!-- Adjusted to 3 columns since the file input is gone -->
+        <!-- Control Panel Form (RESTORED) -->
         <form id="timetable-controls-form" class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-dapa-background rounded-lg shadow-inner">
             
             <!-- Student Name -->
@@ -120,7 +117,7 @@
             </div>
         </form>
 
-        <!-- Dynamic Information Display -->
+        <!-- Dynamic Information Display (RESTORED) -->
         <div class="mb-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-center border-t border-b py-4">
             <div>
                 <p class="text-xs text-gray-500 font-medium">TPP End Date</p>
@@ -136,21 +133,25 @@
             </div>
         </div>
 
-        <!-- Alert and Warning Messages -->
+        <!-- Alert and Warning Messages (UPDATED) -->
         <div class="no-print space-y-3 mb-6">
             <div id="time-pressure-message" class="hidden p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg" role="alert">
                 <p class="font-bold">Immediate Action Required</p>
                 <p>The calculated commencement date is **before today**. You must begin immediately to meet the TPP End Date at a standard pace.</p>
             </div>
+            
+            <!-- Message 2: Aggressive Schedule (UPDATED TEXT) -->
             <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg" role="alert">
-                <p class="font-bold">Aggressive Schedule Applied</p>
-                <p>The timetable has been compressed by **20%** to fit the available time. This schedule is tight and requires high commitment.</p>
+                <p class="font-bold">Less time available for your study.</p>
+                <p>Your study time has been compressed by <span id="aggressive-percent" class="font-extrabold">20%</span>. This schedule is tight and requires **more commitment**.</p>
             </div>
-            <!-- UPDATED MESSAGE CONTENT HERE -->
+            
+            <!-- Message 1: Distributed Time (PREVIOUSLY UPDATED TEXT) -->
             <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg" role="alert">
                 <p class="font-bold">More time available for your studies</p>
                 <p>The timetable has been extended due to a longer end date. You now have more study time by <span id="spread-percent" class="font-extrabold"></span>.</p>
             </div>
+
             <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg" role="alert">
                 <p class="font-bold">CRITICAL WARNING: TPP End Date Unattainable</p>
                 <p>Even with maximum compression, the TPP End Date is not possible. You must request an extension or set an earlier TPP End Date.</p>
@@ -199,7 +200,7 @@
         </div>
     </div>
 
-    <!-- JavaScript Logic -->
+    <!-- JavaScript Logic (RESTORED DYNAMIC LOGIC) -->
     <script>
         // =========================================================================
         // --- DATA AND STATE ---
@@ -276,7 +277,6 @@
                 
                 if (values.length !== headers.length) {
                     // Ignore rows with incorrect column count (e.g., empty lines or poorly formatted data)
-                    // console.warn(`Row ${index + 2} skipped due to incorrect column count: ${line}`);
                     return null;
                 }
 
@@ -622,8 +622,10 @@
             
             const timePressureMessage = document.getElementById('time-pressure-message');
             const aggressiveMessage = document.getElementById('aggressive-message'); 
+            const aggressivePercentEl = document.getElementById('aggressive-percent'); // For new aggressive message
             const criticalWarningMessage = document.getElementById('critical-warning-message'); 
             const distributedTimeMessage = document.getElementById('distributed-time-message');
+            const spreadPercentEl = document.getElementById('spread-percent'); // For distributed message
             
             const printInfoName = document.getElementById('print-info-name');
             const printInfoNumber = document.getElementById('print-info-number');
@@ -692,7 +694,6 @@
             desiredEndDatePrintEl.textContent = formatDate(endDateObj);
             
             // --- SCHEDULING LOGIC START ---
-            // Note: finalResult is now a global variable
             
             let totalRequiredDays = getTotalRequiredDays(data); 
             let actualStartTime = getNextValidDate(TODAY); // The date the course will realistically start
@@ -708,7 +709,8 @@
                 // CASE 1: INSUFFICIENT TIME (Compression needed or Critical stretch)
 
                 // Try Aggressive Compression (Ratio 0.8: 20% time reduction)
-                const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, 0.8);
+                const AGGRESSIVE_RATIO = 0.8;
+                const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, AGGRESSIVE_RATIO);
                 
                 if (aggressiveResult.latestCalculatedStartDate < TODAY) {
                     // Still stretched even after 20% compression. CRITICAL.
@@ -719,6 +721,9 @@
                 } else {
                     // Success! Schedule works with 20% compression (Aggressive)
                     finalResult = aggressiveResult;
+                    
+                    // Show Aggressive message and populate percentage
+                    aggressivePercentEl.textContent = `${Math.round((1.0 - AGGRESSIVE_RATIO) * 100)}%`;
                     aggressiveMessage.classList.remove('hidden');
                 }
                 
@@ -737,8 +742,8 @@
                     finalResult.isDistributed = true;
                     finalResult.distributionRatio = requiredVsAvailableRatio; // Use for display
                     
-                    // Update spread percentage in the new friendly message
-                    distributedTimeMessage.querySelector('#spread-percent').textContent = `${Math.round((finalResult.distributionRatio - 1) * 100)}%`;
+                    // Show Distributed message and populate percentage
+                    spreadPercentEl.textContent = `${Math.round((finalResult.distributionRatio - 1) * 100)}%`;
                     distributedTimeMessage.classList.remove('hidden');
                     
                 } else {
