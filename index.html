@@ -832,27 +832,27 @@
 
                 row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
                 
-                // --- Duration Text to only use Working Days (UPDATED TEXT FOR PLAIN ENGLISH) ---
+                // --- Duration Text to only use Working Days (BOLD REMOVED) ---
                 let durationText;
                 const baseDays = item.DaysRequired;
 
                 if (baseDays === 0) {
-                    durationText = `**0 days** - Submit immediately.`;
+                    durationText = `0 days - Submit immediately.`;
                 } else if (item.distributionRatio !== 1.0) {
                     const changePercent = Math.round(Math.abs(item.distributionRatio - 1) * 100);
                     const adjustedDays = getAdjustedDays(baseDays, item.distributionRatio);
                     
                     if (item.distributionRatio < 1.0) {
                         // Pace is faster (compressed)
-                        durationText = `**Fast Track:** Complete this in **${adjustedDays} working days** (This is ${changePercent}% faster than standard).`;
+                        durationText = `Fast Track: Complete this in ${adjustedDays} working days (This is ${changePercent}% faster than standard).`;
                     } else {
                         // Pace is slower (distributed)
                         // This case only happens if finalResult.isDistributed is true
-                        durationText = `**Flexible Pace:** Complete this in **${adjustedDays} working days** (This is ${changePercent}% slower than standard).`;
+                        durationText = `Flexible Pace: Complete this in ${adjustedDays} working days (This is ${changePercent}% slower than standard).`;
                     }
                     
                 } else {
-                    durationText = `**Standard Pace:** Complete this in **${baseDays} working days**`;
+                    durationText = `Standard Pace: Complete this in ${baseDays} working days`;
                 }
                 // --- End Duration Text ---
 
