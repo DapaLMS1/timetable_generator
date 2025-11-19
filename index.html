@@ -634,30 +634,25 @@
             // Calculate total working days remaining
             const totalAvailableWorkingDays = getWorkingDaysBetween(TODAY, actualCourseEndDate);
             
-            // --- NEW: Calculate and display duration in Weeks and Days ---
+            // --- UPDATED: Calculate and display duration in Weeks (Only) ---
             let durationDisplay;
             if (totalAvailableWorkingDays > 0) {
+                // Calculate only whole weeks (rounding down)
                 const weeks = Math.floor(totalAvailableWorkingDays / 5);
-                const remainingDays = totalAvailableWorkingDays % 5;
                 
-                let parts = [];
                 if (weeks > 0) {
-                    parts.push(`${weeks} Week${weeks > 1 ? 's' : ''}`);
-                }
-                if (remainingDays > 0) {
-                    parts.push(`${remainingDays} Day${remainingDays > 1 ? 's' : ''}`);
-                }
-                durationDisplay = parts.join(' and ');
-                if (parts.length === 0) {
-                    durationDisplay = '0 Days';
+                    durationDisplay = `${weeks} Week${weeks > 1 ? 's' : ''}`;
+                } else {
+                    // If less than 1 whole week, display 0 Weeks
+                    durationDisplay = '0 Weeks'; 
                 }
             } else {
-                durationDisplay = '0 Days';
+                durationDisplay = '0 Weeks';
             }
             
             durationEl.textContent = durationDisplay;
             durationPrintEl.textContent = durationDisplay;
-            // --- END NEW: Weeks and Days calculation ---
+            // --- END UPDATED: Weeks (Only) calculation ---
 
             desiredEndDateEl.textContent = formatDate(endDateObj);
             desiredEndDatePrintEl.textContent = formatDate(endDateObj);
