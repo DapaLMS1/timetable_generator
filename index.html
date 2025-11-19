@@ -171,7 +171,7 @@
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
                     <!-- Timetable rows will be rendered here by JavaScript -->
                     <tr>
-                        <td colspan="3" class="p-8 text-center text-gray-500">Enter your TPP End Date above to generate the schedule.</td>
+                        <td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
                     </tr>
                 </tbody>
             </table>
@@ -196,20 +196,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-
-        // =========================================================================
-        // --- EMBEDDED ASSESSMENT DATA (Replaces CSV Fetch) ---
-        // =========================================================================
-        const ASSESSMENT_DATA = [
-            { UnitCode: "HLTINF006", UnitDescription: "Apply basic principles and practices of infection prevention and control", AssessmentName: "Task 1", AssessmentDescription: "Written Assessment on Infection Control Principles", DaysRequired: 3 },
-            { UnitCode: "HLTINF006", UnitDescription: "Apply basic principles and practices of infection prevention and control", AssessmentName: "Task 2", AssessmentDescription: "Practical/Observation Assessment in a Simulated Environment", DaysRequired: 5 },
-            { UnitCode: "HLTAID011", UnitDescription: "Provide First Aid", AssessmentName: "Task 3", AssessmentDescription: "Simulated Scenario and Written Quiz on First Aid Protocols", DaysRequired: 4 },
-            { UnitCode: "HLTDAA001", UnitDescription: "Assist with dental procedures", AssessmentName: "Task 4", AssessmentDescription: "Assisting with patient preparation and procedure (Logbook entries)", DaysRequired: 10 },
-            { UnitCode: "HLTDAA002", UnitDescription: "Assist with dental radiography", AssessmentName: "Task 5", AssessmentDescription: "Preparing for and assisting with X-rays (Portfolio of Evidence)", DaysRequired: 8 },
-            { UnitCode: "BSBWOR301", UnitDescription: "Organize personal work priorities and development", AssessmentName: "Task 6", AssessmentDescription: "Portfolio Submission and Reflective Practice", DaysRequired: 6 },
-            { UnitCode: "BSBINS302", UnitDescription: "Organize workplace information", AssessmentName: "Task 7", AssessmentDescription: "Managing patient records and documentation", DaysRequired: 5 },
-            { UnitCode: "Final Task", UnitDescription: "Course Completion", AssessmentName: "Final Task", AssessmentDescription: "Submission of all course requirements/logbook checks", DaysRequired: 0 }
-        ];
 
         // =========================================================================
         // --- CUSTOM CONFIGURATION FOR LOCAL RUNNING ---
@@ -268,18 +254,50 @@
             setTimeout(() => { box.innerHTML = ''; }, 5000);
         };
 
-        // --- Data Loading and Parsing ---
+        // --- CSV Loading and Parsing ---
         /**
-         * Loads the embedded assessment data. (Replaces the external CSV fetch)
+         * Fetches and parses the TIMETABLE_DATA.csv file.
+         * The CSV columns are: "Unit Code", "Unit Description", "Assessment", "Assessment Description", "Days Required"
          */
-        function loadTimetableData() {
+        async function loadTimetableData() {
             try {
-                timetableData = ASSESSMENT_DATA;
+                // Fetch the CSV file
+                const response = await fetch('TIMETABLE_DATA.csv');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const csvText = await response.text();
+                
+                // Simple CSV parsing: split by line, then process data lines.
+                const lines = csvText.trim().split('\n');
+                if (lines.length < 2) {
+                    throw new Error("CSV file is empty or only contains headers.");
+                }
+                
+                // Headers are assumed to be the first line, and values are always quoted
+                const headers = ["UnitCode", "UnitDescription", "AssessmentName", "AssessmentDescription", "DaysRequired"];
+                
+                // Map the rows to objects, handling quoted values.
+                const data = lines.slice(1).map(line => {
+                    // Simple regex to split based on comma, but respects quoted fields
+                    const values = line.match(/(?:\"([^\"]*)\"|([^\",]+))/g).map(v => v.replace(/^"|"$/g, '').trim());
+                    
+                    const item = {};
+                    headers.forEach((header, index) => {
+                        item[header] = values[index];
+                    });
+                    
+                    // Convert DaysRequired to integer immediately
+                    item.DaysRequired = parseInt(item.DaysRequired, 10);
+                    return item;
+                });
+                
+                timetableData = data;
                 console.log(`Timetable data loaded successfully: ${timetableData.length} entries.`);
 
             } catch (e) {
-                console.error("Failed to load embedded assessment data:", e);
-                showMessage("Failed to load assessment data. Using an empty schedule.", true);
+                console.error("Failed to load or parse TIMETABLE_DATA.csv:", e);
+                showMessage("Failed to load assessment data from CSV. Using an empty schedule.", true);
                 timetableData = [];
             }
         }
@@ -616,7 +634,7 @@
             // Calculate total working days remaining
             const totalAvailableWorkingDays = getWorkingDaysBetween(TODAY, actualCourseEndDate);
             
-            // --- Calculate and display duration in Weeks (Only) ---
+            // --- UPDATED: Calculate and display duration in Weeks (Only) ---
             let durationDisplay;
             if (totalAvailableWorkingDays > 0) {
                 // Calculate only whole weeks (rounding down)
@@ -634,7 +652,7 @@
             
             durationEl.textContent = durationDisplay;
             durationPrintEl.textContent = durationDisplay;
-            // --- END Weeks (Only) calculation ---
+            // --- END UPDATED: Weeks (Only) calculation ---
 
             desiredEndDateEl.textContent = formatDate(endDateObj);
             desiredEndDatePrintEl.textContent = formatDate(endDateObj);
@@ -756,7 +774,7 @@
 
                 row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
                 
-                // --- Duration Text to only use Working Days ---
+                // --- Updated Duration Text to only use Working Days ---
                 let durationText;
                 const baseDays = item.DaysRequired;
 
@@ -772,7 +790,7 @@
                 } else {
                     durationText = `${baseDays} working days (Standard Pace)`;
                 }
-                // --- End Duration Text ---
+                // --- End Updated Duration Text ---
 
                 let submissionCellContent = dateString;
                 let submissionCellClasses = isPastDue ? 'text-red-600' : 'text-green-600';
@@ -802,8 +820,8 @@
 
         // --- Initialization Function ---
         async function initApp() {
-             // 1. Load embedded data instead of fetching CSV
-            loadTimetableData();
+             // 1. Load CSV data first
+            await loadTimetableData();
 
             try {
                 if (!db) {
