@@ -104,48 +104,46 @@
 
     <!-- Firebase SDKs -->
     <script type="module">
+        // Import Firebase SDKs using CDN for this HTML file
         import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables provided by the Canvas environment
+        // Global variables provided by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         let firebaseConfig = {};
 
         // -------------------------------------------------------------------------
-        // 👇 CRITICAL: Your hardcoded Firebase Configuration (This is the fixed part!)
+        // 👇 CRITICAL: PASTE YOUR REAL FIREBASE CONFIGURATION OBJECT HERE
         // -------------------------------------------------------------------------
+        // You MUST replace the content of the `firebaseConfig` object below
+        // with the keys from your Firebase project.
+        // MINIMUM REQUIRED KEYS for Authentication and Firestore:
+        // apiKey, authDomain, projectId, and appId
         // --- START CONFIG BLOCK ---
         firebaseConfig = {
-            apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M",
-            authDomain: "dapa-firestore.firebaseapp.com",
-            projectId: "dapa-firestore",
-            storageBucket: "dapa-firestore.firebasestorage.app",
-            messagingSenderId: "718243284686",
-            appId: "1:718243284686:web:4345e933c66d888506b29f",
-            measurementId: "G-C942FWNP8W"
+             apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M", 
+             authDomain: "dapa-firestore.firebaseapp.com",
+             projectId: "dapa-firestore",
+             appId: "1:718243284686:web:4345e933c66d888506b29f"
         };
         // --- END CONFIG BLOCK ---
         // -------------------------------------------------------------------------
         // 👆 CRITICAL: End of Configuration
         // -------------------------------------------------------------------------
-        
-        // This is correctly set to null if not provided
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         let db, auth;
-
-        // Define a unique identifier for the hardcoded config to check against
-        const HARDCODED_PROJECT_ID = "dapa-firestore"; 
 
         // --- CORE FUNCTIONS ---
         
         /**
-         * Loads mock data for the timetable when Firebase configuration is missing (only used if firebaseConfig is empty).
+         * Loads mock data for the timetable. This function is now the only way
+         * to display data if Firebase initialization fails or is skipped.
          */
         function loadMockData() {
-            console.warn("Using mock data as Firebase Configuration is missing/invalid.");
+            console.warn("Using mock data. To connect to Firestore, replace the placeholder config with your actual Firebase project keys.");
             const mockAssessments = [
                 { unitCode: 'HLT35021', unitName: 'Dynamic Planning', type: 'Assignment 1', date: '2024-11-20' },
                 { unitCode: 'COMM101', unitName: 'Effective Communication', type: 'Presentation', date: '2024-12-05' },
@@ -158,7 +156,7 @@
                 <tr>
                     <td colspan="3" class="p-2 text-center text-sm font-bold text-blue-700 bg-blue-100/50">
                         <p class="font-bold">MOCK DATA DISPLAYED</p>
-                        <p class="text-xs">Data is not persistent. Connect a valid Firebase project for real data.</p>
+                        <p class="text-xs">Data is not persistent. Replace the config block for real data.</p>
                     </td>
                 </tr>
             `;
@@ -169,7 +167,6 @@
 
         /**
          * Helper function to render an error message to the UI.
-         * This is key for verbose error reporting outside of the console.
          * @param {string} message The error message to display.
          */
         function renderErrorState(message) {
@@ -200,7 +197,7 @@
         function updateTimetable(assessments) {
             const timetableBody = document.getElementById('timetable-body');
             
-            // Sort assessments by date. Firestore's orderBy is avoided due to indexing issues, so we sort client-side.
+            // Sort assessments by date. We sort client-side.
             assessments.sort((a, b) => {
                 const dateA = new Date(a.date);
                 const dateB = new Date(b.date);
@@ -240,23 +237,16 @@
         }
 
         /**
-         * Initializes Firebase and sets up the Firestore listener, 
-         * or falls back to mock data if the provided configuration is invalid 
-         * for the current execution environment.
+         * Initializes Firebase and sets up the Firestore listener.
          */
         async function initFirebaseAndLoadData() {
             try {
-                // VERBOSE LOGGING START
                 setLogLevel('debug');
                 console.log("--- STARTING FIREBASE INITIALIZATION ---");
-                console.log("App ID:", appId);
-                console.log("Initial Auth Token State:", initialAuthToken ? "Present" : "Not Present/Null");
-
-
-                // CRITICAL NEW CHECK: If the hardcoded config is present, assume we are outside 
-                // the required Canvas environment where Auth works, and load mock data.
-                if (firebaseConfig.projectId === HARDCODED_PROJECT_ID) {
-                    const warnMsg = "Detected hardcoded Firebase configuration ('dapa-firestore'). Skipping Auth/Firestore initialization to prevent FATAL error and loading MOCK data instead.";
+                
+                // Check if the config object is empty (user didn't paste anything)
+                if (Object.keys(firebaseConfig).length < 4) { // Check for minimum required keys
+                    const warnMsg = "Firebase configuration object is incomplete or empty. Please ensure you have apiKey, authDomain, projectId, and appId.";
                     console.warn(`⚠️ ${warnMsg}`);
                     loadMockData();
                     return;
@@ -280,9 +270,8 @@
                         console.log(`Attempting sign-in with custom token...`);
                         signInSuccessful = true;
                     } catch (authError) {
-                        // Catch the specific error (auth/configuration-not-found, etc.) and fall back
+                        // Catch error, fall back to Anonymous sign-in.
                         console.warn(`⚠️ Custom Token Sign-in Failed (Code: ${authError.code || 'Unknown'}). Falling back to Anonymous Sign-in.`, authError.message);
-                        // Do not re-throw, proceed to anonymous sign-in attempt
                     }
                 }
 
@@ -298,7 +287,6 @@
                      document.getElementById('auth-status').textContent = `✅ Success (UID: ${userId})`;
                      console.log(`✅ Authentication Successful. User ID: ${userId}`);
                 } else {
-                     // This should ideally never happen after two sign-in attempts but is a safety net
                      throw new Error("Authentication failed. User object is null after sign-in attempt.");
                 }
 
@@ -310,7 +298,6 @@
                 document.getElementById('firestore-path').textContent = collectionPath;
                 console.log(`📡 Attempting to connect to Firestore path: ${collectionPath}`);
 
-                // Note: We avoid using query or orderBy() to prevent needing indexes, sorting client-side instead.
                 const q = collection(db, collectionPath);
 
                 // Use onSnapshot with an explicit error callback for verbose debugging
@@ -330,23 +317,14 @@
                     console.error("❌ Firestore Listener FAILED!", error);
                     let errorMessage = error.message;
 
-                    // If it's a Firestore error, grab the code and provide detailed advice
-                    if (error.code) {
-                        const errorCode = error.code.toUpperCase().replace(/_/g, ' ');
-                        errorMessage = `[${errorCode}] ${error.message}`;
-                        
-                        if (error.code === 'permission-denied') {
-                            errorMessage += " (Check Firestore Security Rules for path access: 'artifacts/{appId}/users/{userId}/assessments')";
-                        }
+                    // Provide detailed advice on permission-denied errors
+                    if (error.code === 'permission-denied') {
+                        errorMessage += " (Check Firestore Security Rules for path access: 'artifacts/{appId}/users/{userId}/assessments')";
                     }
 
-                    // Display a user-friendly error state on the screen
                     renderErrorState(errorMessage);
                 });
 
-                // In a real app, you might return the unsubscribe function to clean up later.
-                // return unsubscribe;
-                
                 // --- END Standard Firebase Initialization Flow ---
 
             } catch (error) {
