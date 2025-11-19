@@ -91,7 +91,7 @@
             <p class="text-lg text-gray-600">Dynamic Planning, Assessment, and Reporting (DAPA)</p>
         </header>
 
-        <!-- Student Info Fields (New Section) -->
+        <!-- Student Info Fields -->
         <div class="bg-white p-4 rounded-xl shadow mb-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
@@ -211,8 +211,8 @@
         }
         
         /**
-         * Loads mock data for the timetable. This function is now the only way
-         * to display data if Firebase initialization fails or is skipped.
+         * Loads mock data for the timetable. This function is a FALLBACK 
+         * and is only called if the Firebase config is missing or invalid.
          */
         function loadMockData() {
             console.warn("Using mock data. To connect to Firestore, replace the placeholder config with your actual Firebase project keys.");
@@ -323,12 +323,13 @@
                 if (Object.keys(firebaseConfig).length < 4) { // Check for minimum required keys
                     const warnMsg = "Firebase configuration object is incomplete or empty. Please ensure you have apiKey, authDomain, projectId, and appId.";
                     console.warn(`⚠️ ${warnMsg}`);
-                    loadMockData();
+                    // Fallback to hardcoded/mock data if config is missing
+                    loadMockData(); 
                     return;
                 }
                 
                 // --- START Standard Firebase Initialization Flow ---
-                console.log("Firebase Config loaded successfully.");
+                console.log("Firebase Config loaded successfully. Proceeding with Firebase data fetching.");
 
                 // 1. Initialize Firebase App
                 const app = initializeApp(firebaseConfig);
@@ -338,7 +339,7 @@
                 // 2. Authentication
                 let signInSuccessful = false;
 
-                // 2a. Attempt Custom Token sign-in if the token is available AND is a non-empty string.
+                // 2a. Attempt Custom Token sign-in
                 if (initialAuthToken && typeof initialAuthToken === 'string' && initialAuthToken.length > 0) {
                     try {
                         await signInWithCustomToken(auth, initialAuthToken);
