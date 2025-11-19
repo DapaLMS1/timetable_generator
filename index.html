@@ -6,7 +6,7 @@
     <title>HLT35021 DAPA Assessment Timetable</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Inter Font -->
+    <!-- Load Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
         /* Define DAPA Color Palette */
@@ -23,124 +23,153 @@
         .text-dapa-secondary { color: var(--dapa-secondary); }
         .bg-dapa-background { background-color: var(--dapa-background); }
         .hover\:bg-dapa-accent-hover:hover { background-color: var(--dapa-accent-hover); }
+        .border-dapa-primary { border-color: var(--dapa-primary); }
         
-        /* General Styling */
+        /* Apply Inter font globally */
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--dapa-background);
         }
-        .container {
-            max-width: 1000px;
-        }
-        
-        /* Input Field Styling */
-        .info-input {
-            border: 1px solid #D1D5DB; /* light gray border */
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.375rem; /* rounded-md */
-            width: 100%;
-            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-        }
-        .info-input:focus {
-            border-color: var(--dapa-primary);
-            outline: 0;
-            box-shadow: 0 0 0 3px rgba(83, 42, 140, 0.25); /* Primary color shadow for focus */
-        }
-
         /* Print styles */
         @media print {
-            .no-print {
-                display: none !important;
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { 
+                background-color: white; 
+                margin: 0; 
+                padding: 0; 
             }
-            body {
-                background-color: white;
+            .timetable-row { page-break-inside: avoid; }
+            .container { 
+                box-shadow: none; 
+                margin: 0; 
+                padding: 10mm; 
+                width: auto;
             }
-            .timetable-card {
-                box-shadow: none;
-                border: 1px solid #ccc;
-            }
-            h1 {
-                color: #000 !important;
-            }
-            /* Ensure text is black for printing */
-            .text-dapa-primary { color: #000 !important; }
-
-            /* Style inputs for printing: make them look like text */
-            .print-field {
-                border: none !important;
-                border-bottom: 1px solid #000 !important; /* Underline effect */
-                padding: 0;
-                display: inline-block;
-                color: #000;
-                font-weight: 600; /* Semibold for visibility */
-            }
-            .print-label {
-                font-weight: 400; /* Normal weight for label */
-                color: #333;
-            }
+            .timetable-container { overflow: visible !important; }
+            .table { border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; }
+        }
+        .print-only { display: none; }
+        .timetable-container { 
+            max-height: 70vh; /* Limit height for viewing */
+            overflow-y: auto; /* Enable scroll if content exceeds height */
         }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="container mx-auto">
-        <header class="text-center mb-6 no-print">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-dapa-primary tracking-tight mb-2">
-                HLT35021 Assessment Timetable
-            </h1>
-            <p class="text-lg text-gray-600">Dynamic Planning, Assessment, and Reporting (DAPA)</p>
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
+        
+        <!-- Header -->
+        <header class="text-center mb-8 pb-4 border-b-2 border-dapa-primary">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-dapa-primary">Dental Assisting Timetable Generator</h1>
+            <p class="text-lg text-gray-600 mt-2">HLT35021 Certificate III in Dental Assisting - Backward Scheduling</p>
         </header>
 
-        <!-- Student Info Fields -->
-        <div class="bg-white p-4 rounded-xl shadow mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                <!-- Student Name -->
-                <div class="flex flex-col">
-                    <label for="student-name" class="print-label text-sm font-medium text-gray-700 mb-1">Student Name</label>
-                    <input type="text" id="student-name" placeholder="Enter student's full name" 
-                           class="info-input print-field">
-                </div>
-                
-                <!-- Student Number -->
-                <div class="flex flex-col">
-                    <label for="student-number" class="print-label text-sm font-medium text-gray-700 mb-1">Student Number</label>
-                    <input type="text" id="student-number" placeholder="Enter student number" 
-                           class="info-input print-field">
-                </div>
-                
-                <!-- Date of Review (Current Date) -->
-                <div class="flex flex-col">
-                    <label for="review-date" class="print-label text-sm font-medium text-gray-700 mb-1">Date of Review</label>
-                    <input type="date" id="review-date" 
-                           class="info-input print-field">
-                </div>
+        <!-- Message Box (Alerts/Notifications) -->
+        <div id="message-box" class="fixed top-4 right-4 z-50 max-w-sm"></div>
+
+        <!-- Print-Only Info Block -->
+        <div class="print-only mb-6 p-4 border rounded-lg border-gray-300">
+            <h2 class="text-xl font-bold text-dapa-primary mb-2">Student Timetable Summary</h2>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                <p><strong>Student Name:</strong> <span id="print-info-name" class="font-semibold"></span></p>
+                <p><strong>Student Number:</strong> <span id="print-info-number" class="font-semibold"></span></p>
+                <p><strong>Calculated Start Date:</strong> <span id="display-start-date-print" class="font-semibold"></span></p>
+                <p><strong>Target End Date:</strong> <span id="display-end-date-print" class="font-semibold"></span></p>
+                <p><strong>Total Duration:</strong> <span id="display-duration-print" class="font-semibold"></span></p>
+            </div>
+            <p class="text-xs italic mt-2">This timetable is calculated based on the DAPA standard working week (5 days) and the Target Program Period (TPP) End Date.</p>
+        </div>
+
+        <!-- Student Details Form and Date Pickers -->
+        <form id="student-details-form" class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-dapa-background rounded-lg shadow-inner">
+            <!-- Student Name -->
+            <div class="col-span-1">
+                <label for="student-name" class="block text-sm font-medium text-gray-700">Student Name</label>
+                <input type="text" id="student-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border" placeholder="e.g., Jane Doe">
+            </div>
+
+            <!-- Student Number -->
+            <div class="col-span-1">
+                <label for="student-number" class="block text-sm font-medium text-gray-700">Student Number</label>
+                <input type="text" id="student-number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border" placeholder="e.g., DAPA-12345">
+            </div>
+
+            <!-- TPP End Date -->
+            <div class="col-span-1">
+                <label for="course-end-date" class="block text-sm font-medium text-gray-700">Target Program Period (TPP) End Date</label>
+                <input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border">
+            </div>
+
+            <div class="col-span-1 md:col-span-3">
+                <button type="submit" class="w-full bg-dapa-primary text-white py-2 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md">
+                    Generate Timetable & Save Details
+                </button>
+            </div>
+        </form>
+
+        <!-- Dynamic Information Display -->
+        <div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-center border-t border-b py-4">
+            <div>
+                <p class="text-xs text-gray-500 font-medium">TPP End Date</p>
+                <p id="display-end-date" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 font-medium">Calculated Start Date</p>
+                <p id="display-start-date" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 font-medium">Remaining Time</p>
+                <p id="display-duration" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 font-medium">User ID (for saving)</p>
+                <p id="display-user-id" class="text-sm font-mono text-gray-400 break-all mt-1">Loading...</p>
             </div>
         </div>
 
-        <!-- Current User Display for Debugging -->
-        <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 p-3 rounded-lg mb-4 text-sm no-print">
-            <p class="font-bold">DEBUG INFO (Check Console F12 for verbosity):</p>
-            <p>User Status: <span id="auth-status" class="font-mono">...Authenticating...</span></p>
-            <p>Firestore Path: <span id="firestore-path" class="font-mono">...Determining...</span></p>
+        <!-- Alert and Warning Messages -->
+        <div class="no-print space-y-3 mb-6">
+            <div id="time-pressure-message" class="hidden p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg" role="alert">
+                <p class="font-bold">Immediate Action Required</p>
+                <p>The calculated commencement date is **before today**. You must begin immediately to meet the TPP End Date at a standard pace.</p>
+            </div>
+            <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg" role="alert">
+                <p class="font-bold">Aggressive Schedule Applied</p>
+                <p>The timetable has been compressed by **20%** to fit the available time. This schedule is tight and requires high commitment.</p>
+            </div>
+            <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg" role="alert">
+                <p class="font-bold">Time Distributed</p>
+                <p>The available time exceeds the standard duration. The schedule is distributed to spread the work over the full period, easing the workload by <span id="spread-percent" class="font-extrabold"></span>.</p>
+            </div>
+            <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg" role="alert">
+                <p class="font-bold">CRITICAL WARNING: TPP End Date Unattainable</p>
+                <p>Even with maximum compression, the TPP End Date is not possible. You must request an extension or set an earlier TPP End Date.</p>
+            </div>
         </div>
+
+        <!-- Timetable -->
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Assessment Submission Timetable</h2>
         
-        <div class="timetable-card bg-white shadow-xl rounded-xl overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-dapa-secondary">
+        <div class="timetable-container shadow-lg rounded-lg border">
+            <table class="min-w-full divide-y divide-gray-200 table-fixed" id="timetable">
+                <thead class="bg-dapa-primary/80 sticky top-0 z-10">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-dapa-primary uppercase tracking-wider">
-                            Unit Code & Name
+                        <th scope="col" class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+                            Task
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-dapa-primary uppercase tracking-wider hidden sm:table-cell">
-                            Assessment Type
+                        <th scope="col" class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
+                            Description / Unit of Competency
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-dapa-primary uppercase tracking-wider">
-                            Submission Date
+                        <th scope="col" class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">
+                            Latest Submission Date
                         </th>
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
+                    <!-- Timetable rows will be rendered here by JavaScript -->
                     <tr>
                         <td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td>
                     </tr>
@@ -148,285 +177,675 @@
             </table>
         </div>
         
+        <!-- Action Buttons -->
         <div class="flex justify-center mt-6 no-print" id="print-button-container">
             <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-2">
-                    <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v12.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15V2.5ZM15 5.5v2.5a.75.75 0 0 0 1.5 0V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v4.5a.75.75 0 0 0 1.5 0V5.5h11ZM4 15V9.75a.75.75 0 0 1 1.5 0V15a.75.75 0 0 0 .75.75h7a.75.75 0 0 0 .75-.75V9.75a.75.75 0 0 1 1.5 0V15A1.5 1.5 0 0 1 13.5 16.5h-7A1.5 1.5 0 0 1 5 15V9.75a.75.75 0 0 1-1.5 0V15Z" clip-rule="evenodd" />
+                    <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5v12.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 15V2.5ZM15 5.5v2.5a.75.75 0 0 0 1.5 0V4a1 1 0 0 0-1-1h-2a.75.75 0 0 0 0 1.5h1.5v1.5Zm-14 3a.75.75 0 0 0 1.5 0v-2A1.5 1.5 0 0 1 4 5.5h2.5a.75.75 0 0 0 0-1.5H4a3 3 0 0 0-3 3v2Z" clip-rule="evenodd" />
+                    <path d="M5.75 12h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Z" />
+                    <path d="M5.75 14h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5Z" />
                 </svg>
                 Print Timetable
             </button>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
+    <!-- JavaScript Logic -->
     <script type="module">
-        // Import Firebase SDKs using CDN for this HTML file
-        import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Import necessary Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        let firebaseConfig = {};
-
-        // -------------------------------------------------------------------------
-        // 👇 CRITICAL: PASTE YOUR REAL FIREBASE CONFIGURATION OBJECT HERE
-        // -------------------------------------------------------------------------
-        // You MUST replace the content of the `firebaseConfig` object below
-        // with the keys from your Firebase project.
-        // MINIMUM REQUIRED KEYS for Authentication and Firestore:
-        // apiKey, authDomain, projectId, and appId
-        // --- START CONFIG BLOCK ---
-        firebaseConfig = {
-            // apiKey: "YOUR_API_KEY", 
-            // authDomain: "your-project.firebaseapp.com",
-            // projectId: "your-project-id",
-            // appId: "1:1234567890:web:abcdef123456"
+        // =========================================================================
+        // --- CUSTOM CONFIGURATION FOR LOCAL RUNNING (Now with user's specific config) ---
+        // This configuration is used as a fallback if the Canvas environment variables are missing.
+        // =========================================================================
+        const DUMMY_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyC0-cG_4ID6_8KmQJBiMnVRASmFXvfSH3M",
+            authDomain: "dapa-firestore.firebaseapp.com",
+            projectId: "dapa-firestore",
+            storageBucket: "dapa-firestore.firebasestorage.app",
+            messagingSenderId: "718243284686",
+            appId: "1:718243284686:web:4345e933c66d888506b29f",
+            measurementId: "G-C942FWNP8W"
         };
-        // --- END CONFIG BLOCK ---
-        // -------------------------------------------------------------------------
-        // 👆 CRITICAL: End of Configuration
-        // -------------------------------------------------------------------------
 
-        let db, auth;
+        // Global variables provided by the Canvas environment (with local fallbacks)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : DUMMY_FIREBASE_CONFIG;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        // --- CORE FUNCTIONS ---
+        let db;
+        let auth;
+        let userId = null;
+        let isSavingEnabled = true;
 
-        /**
-         * Sets the Date of Review input field to the current date.
-         */
-        function setInitialReviewDate() {
-            const dateInput = document.getElementById('review-date');
-            // Check if the element exists and if it's currently empty
-            if (dateInput && !dateInput.value) {
-                const today = new Date();
-                const year = today.getFullYear();
-                // Month is 0-indexed, so add 1 and pad with zero
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                const day = String(today.getDate()).padStart(2, '0');
-                dateInput.value = `${year}-${month}-${day}`;
-            }
-        }
-        
-        /**
-         * Loads mock data for the timetable. This function is a FALLBACK 
-         * and is only called if the Firebase config is missing or invalid.
-         */
-        function loadMockData() {
-            console.warn("Using mock data. To connect to Firestore, replace the placeholder config with your actual Firebase project keys.");
-            // Mock data structure, replacing the old hardcoded array
-            const mockAssessments = [
-                { unitCode: 'HLT35021', unitName: 'Dynamic Planning', type: 'Assignment 1', date: '2024-11-20' },
-                { unitCode: 'COMM101', unitName: 'Effective Communication', type: 'Presentation', date: '2024-12-05' },
-                { unitCode: 'TECH205', unitName: 'Digital Technologies', type: 'Exam', date: '2024-12-15' },
-                { unitCode: 'HLT35021', unitName: 'Assessment & Reporting', type: 'Major Project', date: '2024-12-22' },
-            ];
-            updateTimetable(mockAssessments);
+        // Normalize Today's Date to midday for clean comparison (to avoid timezone issues at midnight)
+        const TODAY = (() => {
+            const d = new Date();
+            // Set time to noon for comparison purposes
+            d.setHours(12, 0, 0, 0); 
+            return d;
+        })();
 
-             document.getElementById('timetable-body').innerHTML += `
-                <tr>
-                    <td colspan="3" class="p-2 text-center text-sm font-bold text-blue-700 bg-blue-100/50">
-                        <p class="font-bold">MOCK DATA DISPLAYED (Config Missing)</p>
-                        <p class="text-xs">Data is not persistent. Replace the config block for real data.</p>
-                    </td>
-                </tr>
-            `;
-            document.getElementById('auth-status').textContent = "MOCK DATA";
-            document.getElementById('firestore-path').textContent = "N/A";
-        }
-
-
-        /**
-         * Helper function to render an error message to the UI.
-         * @param {string} message The error message to display.
-         */
-        function renderErrorState(message) {
-            const timetableBody = document.getElementById('timetable-body');
-            timetableBody.innerHTML = `
-                <tr>
-                    <td colspan="3" class="p-4 text-center text-red-700 font-semibold bg-red-100 rounded-b-xl">
-                        <p class="text-lg">⚠️ ERROR LOADING DATA</p>
-                        <p class="text-sm mt-1 text-red-900 break-all">${message}</p>
-                        <p class="text-xs mt-2 text-red-500">
-                            Check the Console (F12) for detailed logs, especially for
-                            <strong class="text-red-700">Firestore Security Rules</strong> errors.
-                        </p>
-                    </td>
-                </tr>
-            `;
-            // Do not overwrite auth-status if it already indicates config missing
-            if (document.getElementById('auth-status').textContent.indexOf('Missing') === -1) {
-                document.getElementById('auth-status').textContent = "❌ Initialization Failed";
-            }
-            console.error("UI Error Message Displayed:", message);
-        }
-
-        /**
-         * Renders the timetable data to the table body.
-         * @param {Array<Object>} assessments Array of assessment objects.
-         */
-        function updateTimetable(assessments) {
-            const timetableBody = document.getElementById('timetable-body');
+        // --- Data Source for Assessments ---
+        const UNIT_ASSESSMENT_DATA = [
+            // Note: The structure is designed to estimate total days/weeks required.
+            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Student Onboarding Activities', AssessmentDescription: 'Completion of required enrolment, system access, and introductory setup.', Weeks: '2 weeks' },
+            { UnitCode: 'INTRO', UnitDescription: "Let's get started!", AssessmentName: 'Task 1', AssessmentDescription: 'Introduction with DAPA Meeting', Weeks: '0 week' },
             
-            // Sort assessments by date. We sort client-side.
-            assessments.sort((a, b) => {
-                // Ensure date values are parsed correctly, treating Firestore timestamps or strings
-                const dateA = new Date(a.date);
-                const dateB = new Date(b.date);
-                return dateA - dateB;
-            });
+            { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 1', AssessmentDescription: 'The Dental Health Team', Weeks: '1 week' },
+            { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 2', AssessmentDescription: 'Ethics and Jurisprudence', Weeks: '1 week' },
+            { UnitCode: 'CHCCOM005', UnitDescription: 'Communicate and work in health or community service', AssessmentName: 'Task 3', AssessmentDescription: 'Psychology for Dental Assistants', Weeks: '0 week' },
+            { UnitCode: 'CHCDIV001', UnitDescription: 'Work with diverse people', AssessmentName: 'Task 4', AssessmentDescription: 'Demonstrate understanding of diversity, culture, and inclusive practice.', Weeks: '1 week' },
+            { UnitCode: 'CHCDIV001', UnitDescription: 'Work with diverse people', AssessmentName: 'Task 5', AssessmentDescription: 'Apply inclusive and respectful communication and work practices.', Weeks: '1 week' },
+            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate essential WHS knowledge', Weeks: '1 week' },
+            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in workplace health and safety', AssessmentName: 'Task 2', AssessmentDescription: 'Identify, assess, and control hazards', Weeks: '0 week' },
+            { UnitCode: 'HLTWHS001', UnitDescription: 'Participate in WHS activities and follow emergency procedures', AssessmentName: 'Task 3', AssessmentDescription: 'Participate in WHS activities and follow emergency procedures', Weeks: '1 week' },
+            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate understanding of infection control principles', Weeks: '1 week' },
+            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 2', AssessmentDescription: 'Identify infection risks and select/use Personal Protective Equipment (PPE)', Weeks: '1 week' },
+            { UnitCode: 'HLTINF006', UnitDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', AssessmentName: 'Task 3', AssessmentDescription: 'Apply standard infection control procedures, including reprocessing reusable equipment.', Weeks: '2 weeks' },
+            { UnitCode: 'HLTINF006', UnitDescription: 'Apply basic principles and practices of infection prevention and control', AssessmentName: 'Task 4', AssessmentDescription: 'Final assessment for Infection Control', Weeks: '0 week' },
+            
+            { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 5', AssessmentDescription: 'Drying, Inspection, and Packaging', Weeks: '1 week' },
+            { UnitCode: 'HLTINF002', UnitDescription: 'Process reusable instruments and equipment in health work', AssessmentName: 'Task 6', AssessmentDescription: 'Operating the Steriliser (Autoclave)', Weeks: '0 week' },
+            
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 1', AssessmentDescription: 'Foundational Clinic & Communication', Weeks: '5 weeks' },
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 2', AssessmentDescription: 'Clinical Assistance & Logistics', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 3', AssessmentDescription: 'Theoretical Knowledge (Anatomy, Pathology, Pharmacology)', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN015', UnitDescription: 'Prepare for and assist with dental procedures', AssessmentName: 'Workbook 4', AssessmentDescription: 'Specialised Fields & Patient Groups', Weeks: '3 weeks' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 1', AssessmentDescription: 'Demonstrate knowledge of radiation safety, equipment, and protocols', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 2', AssessmentDescription: 'Prepare the surgery, patient, and equipment for X-ray procedures', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 3', AssessmentDescription: 'Correctly process and mount conventional/digital radiographs', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN016', UnitDescription: 'Assist with dental radiography', AssessmentName: 'Task 4', AssessmentDescription: 'Complete documentation and comply with quality assurance', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 1', AssessmentDescription: 'Communicate appropriately in a dental administrative setting', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 2', AssessmentDescription: 'Allocate appointments appropriate to patient and organisation requirements', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 3', AssessmentDescription: 'Process and reconcile patient accounts', Weeks: '1 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with administration in dental practice', AssessmentName: 'Task 4', AssessmentDescription: 'Maintain patient records', Weeks: '0 week' },
+            { UnitCode: 'HLTDEN017', UnitDescription: 'Assist with patient recalls', AssessmentName: 'Task 5', AssessmentDescription: 'Assist with patient recalls', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitDescription: 'Use business software applications', AssessmentName: 'Task 2', AssessmentDescription: 'Word processing', Weeks: '1 week' },
+            { UnitCode: 'BSBTEC201', UnitCode: 'Use business software applications', AssessmentName: 'Task 3', AssessmentDescription: 'Spreadsheets', Weeks: '1 week' },
+            { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 1', AssessmentDescription: 'Knowledge questions', Weeks: '1 week' },
+            { UnitCode: 'BSBTWK201', UnitDescription: 'Work effectively with others', AssessmentName: 'Task 2', AssessmentDescription: 'Reflective journal', Weeks: '1 week' },
+            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid', AssessmentName: 'Task 1', AssessmentDescription: 'Provide First Aid (Practical/Knowledge)', Weeks: '1 week' },
+            { UnitCode: 'HLTAID011', UnitDescription: 'Provide First Aid in the Dental Setting', AssessmentName: 'Task 2', AssessmentDescription: 'First Aid in the Dental Setting', Weeks: '0 week' },
+            
+            { UnitCode: 'FINISH', UnitDescription: 'Course Completion', AssessmentName: 'Final Task', AssessmentDescription: 'Trainer Assessment and Review', Weeks: '2 weeks' },
+        ];
 
-            if (assessments.length === 0) {
-                timetableBody.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="p-8 text-center text-gray-500">
-                            No assessments found for this user. Data is loaded from Firestore.
-                        </td>
-                    </tr>
-                `;
+        // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
+        const PUBLIC_HOLIDAYS = [
+            "2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", 
+            "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", 
+            "2026-10-05", "2026-12-25", "2026-12-28", 
+        ];
+
+        // Firestore path helper for student details
+        const getStudentDetailsDocRef = (uid) => doc(db, 'artifacts', appId, 'users', uid, 'studentDetails', 'info');
+
+        // State variables
+        let studentDetails = { name: '', number: '', startDate: '' }; 
+        let calculatedSchedule = []; 
+        
+        // Utility to show temporary, custom messages (instead of alert())
+        const showMessage = (message, isError = false) => {
+            const box = document.getElementById('message-box');
+            box.innerHTML = `
+                <div class="p-3 mb-2 rounded-lg text-sm font-semibold shadow-lg ${isError ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}">
+                    ${message}
+                </div>
+            `;
+            setTimeout(() => { box.innerHTML = ''; }, 5000);
+        };
+
+        // --- Date Calculation Helpers ---
+
+        /**
+         * Checks if a date falls on a weekend (Saturday or Sunday).
+         */
+        function isWeekend(date) {
+            const day = date.getDay();
+            return day === 0 || day === 6; // Sunday (0) or Saturday (6)
+        }
+
+        /**
+         * Checks if a date falls on a representative public holiday.
+         */
+        function isHoliday(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            return PUBLIC_HOLIDAYS.includes(dateStr);
+        }
+
+        /**
+         * Finds the next valid working day (Monday to Friday, non-holiday).
+         */
+        function getNextValidDate(date) {
+            const validDate = new Date(date.getTime()); 
+            validDate.setHours(12, 0, 0, 0); 
+
+            // Keep adding a day until it's a weekday and not a holiday
+            while (isWeekend(validDate) || isHoliday(validDate)) {
+                validDate.setDate(validDate.getDate() + 1);
+            }
+            return validDate;
+        }
+
+        /**
+         * Finds the previous valid working day (Monday to Friday, non-holiday).
+         */
+        function getPreviousValidDate(date) {
+            const validDate = new Date(date.getTime()); 
+            validDate.setHours(12, 0, 0, 0); 
+
+            // Keep subtracting a day until it's a weekday and not a holiday
+            while (isWeekend(validDate) || isHoliday(validDate)) {
+                validDate.setDate(validDate.getDate() - 1);
+            }
+            return validDate;
+        }
+
+        /**
+         * Counts the number of working days between two dates (inclusive of end, exclusive of start).
+         * Used to find Total Available Working Days.
+         */
+        function getWorkingDaysBetween(startDate, endDate) {
+            let count = 0;
+            const current = new Date(startDate.getTime());
+            current.setHours(12, 0, 0, 0);
+
+            // Start counting from the day after the start date
+            current.setDate(current.getDate() + 1); 
+
+            while (current <= endDate) {
+                if (!isWeekend(current) && !isHoliday(current)) {
+                    count++;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+            return count;
+        }
+
+        /**
+         * Converts a "X week(s)" string into an integer number of working days, 
+         * applying a dynamic stretch/compression ratio.
+         * @param {string} weeksStr - The duration string (e.g., "1 week").
+         * @param {number} [distributionRatio=1.0] - Ratio: > 1.0 distributes time, < 1.0 compresses time.
+         * @returns {number} The duration in working days.
+         */
+        function getDaysFromWeeks(weeksStr, distributionRatio = 1.0) {
+            const match = weeksStr.match(/(\d+)/);
+            const weeks = match ? parseInt(match[1], 10) : 0;
+            const baseDays = weeks * 5; // Use 5 working days per week
+
+            // Apply the ratio (1.2 for 20% distribution, 0.8 for 20% compression)
+            let days = Math.round(baseDays * distributionRatio);
+            
+            // Ensure any task with an original duration > 0 is at least 1 day after modification.
+            if (baseDays > 0 && days === 0) {
+                days = 1; 
+            }
+            return days;
+        }
+
+        /**
+         * Calculates the total required working days for the entire schedule (at standard pace).
+         * @returns {number} The total number of working days.
+         */
+        function getTotalRequiredDays() {
+            return UNIT_ASSESSMENT_DATA.reduce((total, item) => {
+                // Use a distributionRatio of 1.0 (standard pace)
+                return total + getDaysFromWeeks(item.Weeks, 1.0);
+            }, 0);
+        }
+
+        /**
+         * Subtracts a specified number of *working* days from a base Date object (backward scheduling).
+         * @param {Date} baseDate - The Date object to start from (the next submission date).
+         * @param {string} weeksStr - The duration string.
+         * @param {number} [distributionRatio=1.0] - The factor to multiply weeks by.
+         * @returns {Date} The calculated commencement date.
+         */
+        function subtractWeeksFromDate(baseDate, weeksStr, distributionRatio = 1.0) {
+            const requiredWorkingDays = getDaysFromWeeks(weeksStr, distributionRatio);
+            
+            // Start from the day *before* the submission date for the prior task
+            let currentDate = getPreviousValidDate(baseDate); 
+            
+            let daysToSubtract = requiredWorkingDays - 1; // Already accounted for 1 day in getPreviousValidDate
+            
+            if (requiredWorkingDays === 0) {
+                return currentDate; // 0-week tasks submit on the previous task's submission day
+            }
+
+            while (daysToSubtract > 0) {
+                currentDate.setDate(currentDate.getDate() - 1); // Go back one calendar day
+                if (!isWeekend(currentDate) && !isHoliday(currentDate)) {
+                    daysToSubtract--; // Only count down if it's a working day
+                }
+            }
+            
+            // Ensure the final date is a valid working day
+            return getPreviousValidDate(currentDate);
+        }
+
+        /**
+         * Formats a Date object to DD/MM/YYYY string.
+         */
+        function formatDate(dateObj) {
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+            const year = dateObj.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        // --- Firebase Functions ---
+
+        async function loadStudentDetails() {
+            if (!isSavingEnabled || !userId || !db) {
+                renderTimetable(UNIT_ASSESSMENT_DATA); 
                 return;
             }
 
-            timetableBody.innerHTML = assessments.map(assessment => {
-                // Use a try-catch for date formatting in case the data is malformed
-                let formattedDate = assessment.date || 'N/A';
-                try {
-                    formattedDate = new Date(assessment.date).toLocaleDateString('en-AU', {
-                        day: '2-digit', month: 'short', year: 'numeric'
-                    });
-                } catch (e) {
-                    console.error("Error formatting date:", assessment.date, e);
-                    formattedDate = assessment.date; // Fallback to raw value
-                }
+            try {
+                const docSnap = await getDoc(getStudentDetailsDocRef(userId));
+                if (docSnap.exists()) {
+                    studentDetails = docSnap.data();
+                    
+                    const endDateInput = document.getElementById('course-end-date');
+                    
+                    document.getElementById('student-name').value = studentDetails.name || '';
+                    document.getElementById('student-number').value = studentDetails.number || '';
 
-                return `
-                    <tr class="hover:bg-gray-50 transition duration-150">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            ${assessment.unitCode || 'N/A'} - ${assessment.unitName || 'No Title'}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                            ${assessment.type || 'Assessment'}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-dapa-primary">
-                            ${formattedDate}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                    if (studentDetails.startDate) {
+                        endDateInput.value = studentDetails.startDate; 
+                    } else {
+                        endDateInput.value = '';
+                    }
+                } else {
+                    console.log("No student details found. Using defaults/empty.");
+                }
+                renderTimetable(UNIT_ASSESSMENT_DATA);
+            } catch (e) {
+                console.error("Error loading student details.", e);
+                showMessage("Failed to load student details.", true);
+                renderTimetable(UNIT_ASSESSMENT_DATA);
+            }
+        } 
+
+        async function handleSaveDetails(e) {
+            e.preventDefault();
+            const courseAnchorDate = document.getElementById('course-end-date').value.trim();
+
+            if (!courseAnchorDate) {
+                showMessage("Please select a TPP End Date.", true);
+                return;
+            }
+
+            const newDetails = { 
+                name: document.getElementById('student-name').value.trim(), 
+                number: document.getElementById('student-number').value.trim(), 
+                startDate: courseAnchorDate, // Store the anchor date (End Date) in the 'startDate' field
+            };
+            
+            studentDetails = newDetails;
+            renderTimetable(UNIT_ASSESSMENT_DATA);
+
+            if (!isSavingEnabled || !userId || !db) {
+                showMessage("Calculation complete. Cannot save data with dummy Firebase configuration.", true);
+                return;
+            }
+
+            try {
+                await setDoc(getStudentDetailsDocRef(userId), newDetails, { merge: true });
+                showMessage("Student details and timetable saved successfully!");
+            } catch (e) {
+                console.error("Error saving student details.", e);
+                showMessage("Failed to save student details.", true);
+            }
         }
 
         /**
-         * Initializes Firebase and sets up the Firestore listener. This function
-         * replaces the reliance on the hardcoded UNIT_ASSESSMENT_DATA.
+         * Trigger the browser's print dialog.
          */
-        async function initFirebaseAndLoadData() {
-            try {
-                setLogLevel('debug');
-                console.log("--- STARTING FIREBASE INITIALIZATION ---");
+        function handlePrint() {
+            window.print();
+        }
+
+        /**
+         * Main function to perform backward scheduling calculation.
+         * @param {Array} data - The assessment data.
+         * @param {string} courseAnchorDateStr - The desired TPP End Date (YYYY-MM-DD).
+         * @param {number} distributionRatio - The factor to apply (e.g., 1.0 for standard, 0.8 for compression, 1.2 for distribution).
+         * @returns {{calculatedSchedule: Array, latestCalculatedStartDate: Date, adjustedCourseEndDate: Date, isDistributed: boolean, distributionRatio: number}}
+         */
+        function calculateSchedule(data, courseAnchorDateStr, distributionRatio) {
+            // 1. Find the last valid working day on or before the user's selected date.
+            let nextSubmissionDate = getPreviousValidDate(new Date(courseAnchorDateStr));
+            const adjustedCourseEndDate = nextSubmissionDate;
+
+            const reversedData = [...data].reverse();
+            const tempSchedule = [];
+
+            for (const item of reversedData) {
+                const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, Weeks } = item;
                 
-                // Set the default date immediately upon loading
-                setInitialReviewDate(); 
-
-                // Check if the config object is empty (user didn't paste anything)
-                if (Object.keys(firebaseConfig).length < 4) { // Check for minimum required keys
-                    const warnMsg = "Firebase configuration object is incomplete or empty. Please ensure you have apiKey, authDomain, projectId, and appId.";
-                    console.warn(`⚠️ ${warnMsg}`);
-                    loadMockData(); 
-                    return;
-                }
+                const submissionDate = nextSubmissionDate;
                 
-                // --- START Standard Firebase Initialization Flow ---
-                console.log("Firebase Config loaded successfully. Proceeding with Firebase data fetching.");
-
-                // 1. Initialize Firebase App
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                // 2. Authentication
-                let signInSuccessful = false;
-
-                // 2a. Attempt Custom Token sign-in
-                if (initialAuthToken && typeof initialAuthToken === 'string' && initialAuthToken.length > 0) {
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                        signInSuccessful = true;
-                    } catch (authError) {
-                        console.warn(`⚠️ Custom Token Sign-in Failed. Falling back to Anonymous Sign-in.`, authError.message);
-                    }
-                }
-
-                // 2b. Fallback to Anonymous Sign-in
-                if (!signInSuccessful) {
-                    await signInAnonymously(auth);
-                }
-
-                const userId = auth.currentUser?.uid || 'N/A';
+                // Calculate the commencement date for this task 
+                const latestCommencementDate = subtractWeeksFromDate(submissionDate, Weeks, distributionRatio);
                 
-                if (auth.currentUser) {
-                     document.getElementById('auth-status').textContent = `✅ Success (UID: ${userId})`;
-                } else {
-                     throw new Error("Authentication failed. User object is null after sign-in attempt.");
-                }
-
-                // 3. Firestore Listener Setup
-                const collectionName = 'assessments';
-                // Using the required private collection path: /artifacts/{appId}/users/{userId}/assessments
-                const collectionPath = `artifacts/${appId}/users/${userId}/${collectionName}`;
-
-                document.getElementById('firestore-path').textContent = collectionPath;
-                console.log(`📡 Attempting to connect to Firestore path: ${collectionPath}`);
-
-                const q = collection(db, collectionPath);
-
-                // Use onSnapshot for real-time data
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    console.log(`📥 Received data snapshot. Total documents: ${snapshot.docs.length}`);
-                    
-                    const assessments = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-
-                    updateTimetable(assessments);
-                    console.log("✅ Timetable updated successfully from Firestore.");
-                }, 
-                // CRUCIAL: Error callback for the listener
-                (error) => {
-                    console.error("❌ Firestore Listener FAILED!", error);
-                    let errorMessage = error.message;
-
-                    if (error.code === 'permission-denied') {
-                        errorMessage += " (Check Firestore Security Rules for path access: 'artifacts/{appId}/users/{userId}/assessments')";
-                    }
-
-                    renderErrorState(errorMessage);
+                // Store data
+                tempSchedule.push({
+                    UnitCode,
+                    UnitDescription,
+                    AssessmentName,
+                    AssessmentDescription,
+                    Weeks: item.Weeks, 
+                    distributionRatio: distributionRatio, 
+                    SubmissionDate: submissionDate,
                 });
 
-                // --- END Standard Firebase Initialization Flow ---
+                // Set up the next calculation iteration
+                nextSubmissionDate = latestCommencementDate;
+            }
 
-            } catch (error) {
-                // Catch any fatal errors during authentication or general setup *after* config check
-                console.error("FATAL INITIALIZATION ERROR:", error);
-                const errorMessage = error.message || "An unknown error occurred during app initialization.";
-                renderErrorState(`Initialization Failed: ${errorMessage}`);
+            const calculatedSchedule = tempSchedule.reverse();
+
+            // The commencement date of the very first task (standard calculation start date)
+            const latestCalculatedStartDate = getNextValidDate(nextSubmissionDate);
+            
+            // Flag indicates if the calculated start date is BEFORE today (i.e., time pressure)
+            const isDistributed = distributionRatio > 1.0; 
+            
+            return { calculatedSchedule, latestCalculatedStartDate, adjustedCourseEndDate, isDistributed, distributionRatio };
+        }
+
+
+        // --- Rendering Function (Includes new Distribution Logic) ---
+        function renderTimetable(data) {
+            const container = document.getElementById('timetable-body');
+            const calculatedStartDateEl = document.getElementById('display-start-date');
+            const desiredEndDateEl = document.getElementById('display-end-date');
+            const durationEl = document.getElementById('display-duration');
+            
+            const desiredEndDatePrintEl = document.getElementById('display-end-date-print');
+            const calculatedStartDatePrintEl = document.getElementById('display-start-date-print');
+            const durationPrintEl = document.getElementById('display-duration-print');
+            
+            const timePressureMessage = document.getElementById('time-pressure-message');
+            const aggressiveMessage = document.getElementById('aggressive-message'); 
+            const criticalWarningMessage = document.getElementById('critical-warning-message'); 
+            const distributedTimeMessage = document.getElementById('distributed-time-message'); // Renamed
+
+            const printInfoName = document.getElementById('print-info-name');
+            const printInfoNumber = document.getElementById('print-info-number');
+            
+            const dateElements = [calculatedStartDateEl, desiredEndDateEl, calculatedStartDatePrintEl, desiredEndDatePrintEl];
+
+            if (!container) return;
+
+            const courseAnchorDateStr = studentDetails.startDate; // TPP End Date
+            
+            // --- Reset All Elements ---
+            calculatedStartDateEl.textContent = 'N/A';
+            calculatedStartDatePrintEl.textContent = 'N/A';
+            desiredEndDateEl.textContent = 'N/A';
+            desiredEndDatePrintEl.textContent = 'N/A';
+            durationEl.textContent = 'N/A'; 
+            durationPrintEl.textContent = 'N/A';
+            
+            timePressureMessage.classList.add('hidden');
+            aggressiveMessage.classList.add('hidden'); 
+            criticalWarningMessage.classList.add('hidden');
+            distributedTimeMessage.classList.add('hidden'); // Reset NEW message
+            
+            dateElements.forEach(el => {
+                el.classList.remove('text-red-600', 'text-green-600');
+                el.classList.add('text-dapa-primary');
+            });
+            
+            printInfoName.textContent = studentDetails.name || 'N/A';
+            printInfoNumber.textContent = studentDetails.number || 'N/A';
+
+            calculatedSchedule = [];
+            container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Enter your TPP End Date above to generate the schedule.</td></tr>';
+
+            if (!courseAnchorDateStr) {
+                return;
+            }
+            
+            const endDateObj = new Date(courseAnchorDateStr); 
+            endDateObj.setHours(12, 0, 0, 0); 
+            const actualCourseEndDate = getPreviousValidDate(endDateObj); // Last possible submission day
+
+            const timeDiff = actualCourseEndDate.getTime() - TODAY.getTime();
+            let durationWeeks = 0;
+            if (timeDiff > 0) {
+                const dayDiff = timeDiff / (1000 * 60 * 60 * 24);
+                durationWeeks = Math.ceil(dayDiff / 7); 
+            }
+            const durationDisplay = `${durationWeeks} Weeks Remaining`;
+
+            durationEl.textContent = durationDisplay;
+            durationPrintEl.textContent = durationDisplay;
+
+            desiredEndDateEl.textContent = formatDate(endDateObj);
+            desiredEndDatePrintEl.textContent = formatDate(endDateObj);
+            
+            // --- SCHEDULING LOGIC START ---
+            let finalResult;
+            let distributionRatio = 1.0;
+            let totalRequiredDays = getTotalRequiredDays();
+            let actualStartTime = getNextValidDate(TODAY); // The date the course will realistically start
+
+            // 1. Run Standard Calculation (Ratio 1.0) to see where it starts
+            const standardResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
+            const standardCalculatedStartDate = standardResult.latestCalculatedStartDate;
+
+            // --- Available Days Calculation ---
+            const totalAvailableDays = getWorkingDaysBetween(actualStartTime, actualCourseEndDate);
+            const isStandardScheduleInPast = standardCalculatedStartDate < TODAY;
+            
+            if (totalAvailableDays < totalRequiredDays) {
+                
+                // CASE 1: INSUFFICIENT TIME (Compression needed or Critical stretch)
+
+                // Try Aggressive Compression (Ratio 0.8: 20% time reduction)
+                const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, 0.8);
+                
+                if (aggressiveResult.latestCalculatedStartDate < TODAY) {
+                    // Still stretched even after 20% compression. CRITICAL.
+                    finalResult = standardResult; // Show the original stretched schedule
+                    finalResult.isCriticalStretch = true;
+                    finalResult.distributionRatio = 1.0; // Ensure ratio is correctly marked
+                    
+                } else {
+                    // Success! Schedule works with 20% compression (Aggressive)
+                    finalResult = aggressiveResult;
+                    aggressiveMessage.classList.remove('hidden');
+                }
+                
+            } else if (totalAvailableDays > totalRequiredDays) {
+                
+                // CASE 2: EXCESS TIME (Distribution needed)
+                
+                // Calculate the Distribution Ratio (R > 1.0)
+                const requiredVsAvailableRatio = totalAvailableDays / totalRequiredDays;
+                
+                // Only distribute if we have more than 5% extra time
+                if (requiredVsAvailableRatio > 1.05) { 
+                    
+                    finalResult = calculateSchedule(data, courseAnchorDateStr, requiredVsAvailableRatio);
+                    finalResult.latestCalculatedStartDate = actualStartTime; // Force start date to TODAY
+                    finalResult.isDistributed = true;
+                    finalResult.distributionRatio = requiredVsAvailableRatio; // Use for display
+                    
+                    distributedTimeMessage.querySelector('#spread-percent').textContent = `${Math.round((finalResult.distributionRatio - 1) * 100)}%`;
+                    distributedTimeMessage.classList.remove('hidden');
+                    
+                } else {
+                    // Small amount of extra time (less than 5%): use standard schedule and treat as normal.
+                    finalResult = standardResult;
+                    if(isStandardScheduleInPast) {
+                        timePressureMessage.classList.remove('hidden'); // Show standard 'start immediately' message
+                    }
+                }
+                
+            } else {
+                
+                // CASE 3: EXACT TIME REQUIRED (Standard pace)
+                finalResult = standardResult;
+                if (isStandardScheduleInPast) {
+                    // If exactly required, but the start date is in the past, still show the pressure message
+                    timePressureMessage.classList.remove('hidden');
+                }
+            }
+
+            // 4. Update Header Display based on final result
+            calculatedStartDateEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
+            calculatedStartDatePrintEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
+            
+            // 5. Display appropriate message and apply red color if critical
+            
+            if (finalResult.isCriticalStretch) {
+                // CRITICAL STRETCH (Maximum compression failed)
+                criticalWarningMessage.classList.remove('hidden');
+                dateElements.forEach(el => {
+                    el.classList.remove('text-dapa-primary');
+                    el.classList.add('text-red-600');
+                });
+
+            } else if (finalResult.distributionRatio === 1.0 && isStandardScheduleInPast) {
+                // Standard pace failed (Start date is in the past)
+                // The message is already handled above, but ensure color is normal unless critical
+            } 
+
+            // 6. Render the results
+            container.innerHTML = ''; 
+            let lastUnitCode = null;
+
+            finalResult.calculatedSchedule.forEach((item) => {
+                const isNewUnit = item.UnitCode !== lastUnitCode;
+
+                // --- Handle Unit Header ---
+                if (isNewUnit) { 
+                    const unitHeaderRow = document.createElement('tr');
+                    unitHeaderRow.className = 'bg-dapa-secondary/50 border-t-8 border-dapa-primary';
+                    unitHeaderRow.innerHTML = `
+                        <td colspan="3" class="px-4 py-2 font-extrabold text-dapa-primary">
+                            ${item.UnitCode}: ${item.UnitDescription}
+                        </td>
+                    `;
+                    container.appendChild(unitHeaderRow);
+                }
+
+                const dateString = formatDate(item.SubmissionDate);
+                const isPastDue = item.SubmissionDate < TODAY;
+
+                // --- Handle Standard Task Rendering ---
+                lastUnitCode = item.UnitCode;
+
+                const row = document.createElement('tr');
+                const rowClasses = isPastDue 
+                    ? 'bg-red-100 hover:bg-red-200' 
+                    : 'bg-white hover:bg-dapa-secondary/30';
+
+                row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
+                
+                let durationText = item.Weeks;
+                
+                if (item.distributionRatio !== 1.0) {
+                    const changePercent = Math.round(Math.abs(item.distributionRatio - 1) * 100);
+                    const action = item.distributionRatio < 1.0 ? 'Compressed' : 'Distributed';
+                    
+                    // Display specific percentage
+                    durationText = `${action} (${changePercent}% change) from ${item.Weeks}`;
+                }
+                
+                let submissionCellContent = dateString;
+                let submissionCellClasses = isPastDue ? 'text-red-600' : 'text-green-600';
+                
+
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium w-1/12">
+                        ${item.AssessmentName}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-700 w-6/12">
+                        ${item.AssessmentDescription}
+                        <p class="text-xs text-gray-500 italic">${durationText}</p>
+                    </td>
+                    <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${submissionCellClasses} w-4/12">
+                        ${submissionCellContent}
+                        ${isPastDue && item.AssessmentName !== 'Final Task' ? '<p class="text-xs font-medium text-red-500">Insufficient Time</p>' : ''}
+                    </td>
+                `;
+                container.appendChild(row);
+            });
+
+            if (finalResult.calculatedSchedule.length === 0) {
+                container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">No data available to calculate timetable.</td></tr>';
             }
         }
 
-        // --- EVENT LISTENERS ---
 
-        document.addEventListener('DOMContentLoaded', () => {
-            initFirebaseAndLoadData();
+        // --- Initialization Function ---
+        async function initApp() {
+            try {
+                if (!db) {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    // setLogLevel('debug'); 
 
-            // Print button handler
+                    await setPersistence(auth, browserLocalPersistence);
+
+                    onAuthStateChanged(auth, async (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            document.getElementById('display-user-id').textContent = userId;
+                            console.log("Firebase Auth State Changed: User signed in.", userId);
+                            await loadStudentDetails();
+                        } else {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                const anonymousUser = await signInAnonymously(auth);
+                                userId = anonymousUser.user.uid;
+                                document.getElementById('display-user-id').textContent = userId;
+                                console.log("Firebase Auth State Changed: Signed in anonymously.", userId);
+                                await loadStudentDetails();
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                isSavingEnabled = false;
+                console.error("Firebase initialization failed. Running in read-only/no-save mode.", e);
+                document.getElementById('display-user-id').textContent = 'N/A (No Save)';
+                showMessage("Saving/Loading is disabled: Firebase connection failed.", true);
+                renderTimetable(UNIT_ASSESSMENT_DATA);
+            }
+        }
+
+        // Attach event listeners and start initialization
+        window.addEventListener('load', () => {
+            const form = document.getElementById('student-details-form');
+            if (form) {
+                form.addEventListener('submit', handleSaveDetails);
+            }
+            
             const printButton = document.getElementById('print-button');
             if (printButton) {
-                printButton.addEventListener('click', () => {
-                    window.print();
-                });
+                printButton.addEventListener('click', handlePrint);
             }
+
+            initApp();
         });
     </script>
 </body>
