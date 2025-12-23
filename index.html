@@ -114,13 +114,14 @@
 
     <script>
         /**
-         * OAUTH 2.0 PKCE CONFIGURATION
+         * UPDATED OAUTH CONFIGURATION FOR DAPA TENANT
          */
         const OAuthConfig = {
             clientId: '64a08b7b43b1b59e38d6cd924ff34110539caf9e006e1c336ff7d7b464b355d4', 
             clientSecret: '7f1d4209162ae8b75f4ac500cca90ab8747e842e76cd0c00138b9fbb0bc06d83',
-            authUrl: 'https://api.readytech.com.au/identity/connect/authorize',
-            tokenUrl: 'https://api.readytech.com.au/identity/connect/token',
+            // Using the dapa.readystudent.io domain as the identity provider
+            authUrl: 'https://dapa.readystudent.io/identity/connect/authorize',
+            tokenUrl: 'https://dapa.readystudent.io/identity/connect/token',
             redirectUri: 'https://dapalms1.github.io/timetable_generator/index.html',
             scope: 'readystudent.readonly openid profile'
         };
@@ -160,6 +161,11 @@
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
                     
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        return { success: false, error: errorData.error_description || `HTTP ${response.status}` };
+                    }
+
                     const data = await response.json();
                     if (data.access_token) {
                         localStorage.setItem('rt_token', data.access_token);
@@ -169,7 +175,7 @@
                     }
                 } catch (e) {
                     console.error("Token Exchange Error:", e);
-                    return { success: false, error: e.message };
+                    return { success: false, error: "Network Error: Could not reach Identity Server." };
                 }
             },
 
@@ -236,11 +242,11 @@
                         location.reload();
                     } else {
                         this.status.textContent = "Auth Error: " + result.error;
-                        this.status.className = "mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-red-500";
+                        this.status.className = "mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-red-500 bg-red-50 p-2 rounded";
                     }
                 } else if (error) {
                     this.status.textContent = "Login Rejected: " + error;
-                    this.status.className = "mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-red-500";
+                    this.status.className = "mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-red-500 bg-red-50 p-2 rounded";
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             },
@@ -264,13 +270,17 @@
 
                 this.status.textContent = "Syncing with ReadyStudent...";
                 try {
-                    const url = `https://api.readytech.com.au/readystudent/v1/students/${id}`;
+                    // Using the tenant domain for the API as well
+                    const url = `https://dapa.readystudent.io/readystudent/v1/students/${id}`;
                     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
                     
                     const response = await fetch(proxyUrl, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     const wrapper = await response.json();
+                    
+                    if (!wrapper.contents) throw new Error("No data returned from student API.");
+
                     const student = JSON.parse(wrapper.contents);
                     
                     if (student.firstName) {
@@ -278,7 +288,7 @@
                         this.status.textContent = "Student Sync Successful";
                         this.btnGen.disabled = false;
                     } else {
-                        throw new Error("Student not found");
+                        throw new Error("Student not found.");
                     }
                 } catch (e) {
                     this.status.textContent = "Sync Failed: " + e.message;
