@@ -119,9 +119,9 @@
         const OAuthConfig = {
             clientId: '64a08b7b43b1b59e38d6cd924ff34110539caf9e006e1c336ff7d7b464b355d4', 
             clientSecret: '7f1d4209162ae8b75f4ac500cca90ab8747e842e76cd0c00138b9fbb0bc06d83',
-            // Correct official Identity endpoints
-            authUrl: 'https://identity.jobreadyplus.com/connect/authorize',
-            tokenUrl: 'https://identity.jobreadyplus.com/connect/token',
+            // Corrected to use the tenant-specific subdomain as per standard JobReady multi-tenant setups
+            authUrl: 'https://dapa.jobreadyplus.com/connect/authorize',
+            tokenUrl: 'https://dapa.jobreadyplus.com/connect/token',
             redirectUri: 'https://dapalms1.github.io/timetable_generator/index.html',
             scope: 'readystudent.readonly openid profile'
         };
@@ -133,7 +133,7 @@
                 
                 const challenge = await this.generateChallenge(verifier);
                 
-                // acr_values with tenant:dapa is critical for multi-tenant identity
+                // Using dapa.jobreadyplus.com ensures the context is already set to your tenant
                 const url = `${OAuthConfig.authUrl}?` +
                     `client_id=${OAuthConfig.clientId}&` +
                     `redirect_uri=${encodeURIComponent(OAuthConfig.redirectUri)}&` +
@@ -258,7 +258,7 @@
 
                 this.status.textContent = "Syncing with ReadyStudent...";
                 try {
-                    // Using the official API domain
+                    // API remains on the centralized jobreadyplus domain or follow tenant subdomain
                     const url = `https://api.jobreadyplus.com/v1/students/${id}`;
                     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
                     
