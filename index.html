@@ -114,14 +114,14 @@
 
     <script>
         /**
-         * UPDATED OAUTH CONFIGURATION FOR DAPA TENANT
+         * UPDATED OAUTH CONFIGURATION FROM JOBREADY DOCUMENTATION
          */
         const OAuthConfig = {
             clientId: '64a08b7b43b1b59e38d6cd924ff34110539caf9e006e1c336ff7d7b464b355d4', 
             clientSecret: '7f1d4209162ae8b75f4ac500cca90ab8747e842e76cd0c00138b9fbb0bc06d83',
-            // Using the dapa.readystudent.io domain as the identity provider
-            authUrl: 'https://dapa.readystudent.io/identity/connect/authorize',
-            tokenUrl: 'https://dapa.readystudent.io/identity/connect/token',
+            // Correct official Identity endpoints
+            authUrl: 'https://identity.jobreadyplus.com/connect/authorize',
+            tokenUrl: 'https://identity.jobreadyplus.com/connect/token',
             redirectUri: 'https://dapalms1.github.io/timetable_generator/index.html',
             scope: 'readystudent.readonly openid profile'
         };
@@ -133,13 +133,15 @@
                 
                 const challenge = await this.generateChallenge(verifier);
                 
+                // acr_values with tenant:dapa is critical for multi-tenant identity
                 const url = `${OAuthConfig.authUrl}?` +
                     `client_id=${OAuthConfig.clientId}&` +
                     `redirect_uri=${encodeURIComponent(OAuthConfig.redirectUri)}&` +
                     `response_type=code&` +
                     `scope=${encodeURIComponent(OAuthConfig.scope)}&` +
                     `code_challenge=${challenge}&` +
-                    `code_challenge_method=S256`;
+                    `code_challenge_method=S256&` +
+                    `acr_values=${encodeURIComponent('tenant:dapa')}`;
                 
                 window.location.href = url;
             },
@@ -174,7 +176,6 @@
                         return { success: false, error: data.error_description || data.error || 'Unknown error' };
                     }
                 } catch (e) {
-                    console.error("Token Exchange Error:", e);
                     return { success: false, error: "Network Error: Could not reach Identity Server." };
                 }
             },
@@ -232,22 +233,12 @@
             async checkCallback() {
                 const params = new URLSearchParams(window.location.search);
                 const code = params.get('code');
-                const error = params.get('error');
-
                 if (code) {
                     this.status.textContent = "Validating secure session...";
                     const result = await OAuthManager.exchangeCode(code);
                     window.history.replaceState({}, document.title, window.location.pathname);
-                    if (result.success) {
-                        location.reload();
-                    } else {
-                        this.status.textContent = "Auth Error: " + result.error;
-                        this.status.className = "mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-red-500 bg-red-50 p-2 rounded";
-                    }
-                } else if (error) {
-                    this.status.textContent = "Login Rejected: " + error;
-                    this.status.className = "mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-red-500 bg-red-50 p-2 rounded";
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    if (result.success) location.reload();
+                    else this.status.textContent = "Auth Error: " + result.error;
                 }
             },
 
@@ -263,26 +254,21 @@
             async syncProfile() {
                 const id = this.inId.value.trim();
                 const token = localStorage.getItem('rt_token');
-                if (!token) {
-                    this.status.textContent = "Error: Please connect ReadyTech first.";
-                    return;
-                }
+                if (!token) return;
 
                 this.status.textContent = "Syncing with ReadyStudent...";
                 try {
-                    // Using the tenant domain for the API as well
-                    const url = `https://dapa.readystudent.io/readystudent/v1/students/${id}`;
+                    // Using the official API domain
+                    const url = `https://api.jobreadyplus.com/v1/students/${id}`;
                     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
                     
                     const response = await fetch(proxyUrl, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     const wrapper = await response.json();
-                    
-                    if (!wrapper.contents) throw new Error("No data returned from student API.");
+                    if (!wrapper.contents) throw new Error("No data returned.");
 
                     const student = JSON.parse(wrapper.contents);
-                    
                     if (student.firstName) {
                         this.inName.value = `${student.firstName} ${student.lastName}`;
                         this.status.textContent = "Student Sync Successful";
@@ -291,7 +277,7 @@
                         throw new Error("Student not found.");
                     }
                 } catch (e) {
-                    this.status.textContent = "Sync Failed: " + e.message;
+                    this.status.textContent = "Sync Failed: Check credentials or Student ID.";
                 }
             }
         };
