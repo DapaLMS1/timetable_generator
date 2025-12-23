@@ -111,6 +111,10 @@
                         </button>
                     </div>
                 </div>
+                <!-- Data Load Status Indicator -->
+                <div id="data-load-status" class="mt-4 text-center text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    Initializing assessment data...
+                </div>
             </section>
 
             <section id="dashboard" class="bg-gray-50 mt-4 px-8 pt-8 pb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -257,53 +261,45 @@
         };
 
         const DataLayer = {
-            getStudyData: function() {
-                const rawCsv = `Unit Code,Unit Description,Assessment,Assessment Description,Days Required
-ONBOARDING,Let's get started!,Task 1,Student Onboarding Activities,14
-ONBOARDING,Let's get started!,Task 2,Introduction (Mandatory),7
-CHCCOM005,Communicate and work in health or community service,Task 1,The Dental Health Team,7
-CHCCOM005,Communicate and work in health or community service,Task 2,Ethics and Jurisprudence,7
-CHCCOM005,Communicate and work in health or community service,Task 3,Psychology for Dental Assistants,1
-CHCDIV001,Work with diverse people,Task 4,"Demonstrate understanding of diversity, culture, and inclusive practice.",7
-CHCDIV001,Work with diverse people,Task 5,Apply inclusive and respectful communication and work practices.,7
-HLTWHS001,Participate in workplace health and safety,Task 1,Demonstrate essential WHS knowledge,7
-HLTWHS001,Participate in workplace health and safety,Task 2,"Identify, assess, and control hazards",1
-HLTWHS001,Participate in workplace health and safety,Task 3,Participate in WHS activities and follow emergency procedures,7
-HLTINF006,Apply basic principles and practices of infection prevention and control,Task 1,Demonstrate infection control principles,7
-HLTINF006,Apply basic principles and practices of infection prevention and control,Task 2,Identify infection risks and select/use Personal Protective Equipment (PPE),7
-HLTINF006,Apply basic principles and practices of infection prevention and control,Task 3,Demonstrate infection control procedures and manage clean/contaminated zones,7
-HLTINF006,Apply basic principles and practices of infection prevention and control,Task 4,Clinical documentation and reporting,1
-HLTINF007,Implement and monitor infection prevention and control standards,Task 1,Implement and monitor IPC policies and procedures,7
-HLTDEN010,Prepare for and assist with oral health care procedures,Task 1,"Maintain instruments, equipment and clinical environment",7
-HLTDEN010,Prepare for and assist with oral health care procedures,Task 2,Support patient and practitioner during dental procedures,7
-HLTDEN011,Assist with dental treatment in a clinical environment,Task 1,Assist with a range of dental procedures,7
-HLTDEN012,Apply the principles of radiation safety in oral health care,Task 1,Apply radiation safety principles,7
-HLTDEN015,Prepare to expose a prescribed dental radiographic image,Task 1,Prepare to expose dental radiographs,7
-HLTDEN016,Assist with dental radiography,Task 1,"Demonstrate knowledge of radiation safety, equipment, and protocols",7
-HLTDEN016,Assist with dental radiography,Task 2,"Prepare the surgery, patient, and equipment for X-ray procedures",1
-HLTDEN016,Assist with dental radiography,Task 3,Correctly process and mount conventional/digital radiographs,7
-HLTDEN016,Assist with dental radiography,Task 4,Complete documentation and comply with quality assurance,1
-HLTDEN017,Assist with administration in dental practice,Task 1,Communicate appropriately in a dental administrative setting,7
-HLTDEN017,Assist with administration in dental practice,Task 2,Allocate appointments appropriate to patient and organisation requirements,1
-HLTDEN017,Assist with administration in dental practice,Task 3,Process and reconcile patient accounts,7
-HLTDEN017,Assist with administration in dental practice,Task 4,Maintain patient records,1
-HLTDEN017,Assist with administration in dental practice,Task 5,Assist with patient recalls,7
-BSBTEC201,Use business software applications,Task 1,Knowledge questions,7
-BSBTEC201,Use business software applications,Task 2,Word processing,7
-BSBTEC201,Use business software applications,Task 3,Spreadsheets,7
-BSBTWK201,Work effectively with others,Task 1,Knowledge questions,7
-BSBTWK201,Work effectively with others,Task 2,Reflective journal,7
-HLTAID011,Provide First Aid,Task 1,First Aid,7
-HLTDEN001,Prepare for and assist with oral health care procedures,Task 1,Clinical Practice,7
-HLTDEN002,Assist with dental treatment in a clinical environment,Task 1,Clinical Practice,7
-HLTDEN003,Apply the principles of radiation safety in oral health care,Task 1,Clinical Practice,7
-HLTDEN004,Prepare to expose a prescribed dental radiographic image,Task 1,Clinical Practice,7
-HLTDEN005,Assist with dental radiography,Task 1,Clinical Practice,7`;
-                return this.parseCSV(rawCsv);
+            CSV_FILE_PATH: 'TIMETABLE_DATA.csv',
+            timetableData: [],
+
+            async loadTimetableData(statusEl, btnEl, tableBodyEl, onComplete) {
+                try {
+                    statusEl.textContent = `Loading assessment data from ${this.CSV_FILE_PATH}...`;
+                    const response = await fetch(this.CSV_FILE_PATH);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const csvText = await response.text();
+                    const parsedData = this.parseCSV(csvText);
+
+                    if (parsedData.length > 0) {
+                        this.timetableData = parsedData;
+                        statusEl.textContent = `Successfully loaded ${parsedData.length} assessment tasks.`;
+                        statusEl.classList.remove('text-gray-400');
+                        statusEl.classList.add('text-green-600');
+                        
+                        // Callback for any post-load logic
+                        if (onComplete) onComplete();
+                    } else {
+                        throw new Error("CSV file contains no valid assessment data.");
+                    }
+                } catch (error) {
+                    console.error("Error loading CSV:", error);
+                    statusEl.textContent = `Error loading data: ${error.message}.`;
+                    statusEl.classList.remove('text-gray-400');
+                    statusEl.classList.add('text-red-600');
+                    tableBodyEl.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-red-500 font-bold uppercase text-xs">Error loading assessment data. Please check the CSV file.</td></tr>';
+                }
             },
 
-            parseCSV: function(csv) {
-                const lines = csv.split(/\r?\n/).filter(line => line.trim() !== "");
+            parseCSV(csvText) {
+                const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim() !== "");
+                if (lines.length < 2) return [];
+                
                 const headers = lines[0].split(',');
                 return lines.slice(1).map(line => {
                     const row = [];
@@ -329,7 +325,14 @@ HLTDEN005,Assist with dental radiography,Task 1,Clinical Practice,7`;
             init: function() {
                 this.cacheDOM();
                 this.bindEvents();
-                this.loadUserData();
+                
+                // Load remote data first
+                DataLayer.loadTimetableData(
+                    this.dataStatus, 
+                    this.btnGenerate, 
+                    this.tableBody,
+                    () => this.loadUserData() // Then load saved user state
+                );
             },
 
             cacheDOM: function() {
@@ -346,10 +349,15 @@ HLTDEN005,Assist with dental radiography,Task 1,Clinical Practice,7`;
                 this.studentName = document.getElementById('student-name');
                 this.studentId = document.getElementById('student-id');
                 this.extensionAlert = document.getElementById('extension-alert');
+                this.dataStatus = document.getElementById('data-load-status');
             },
 
             bindEvents: function() {
-                this.inputDate.addEventListener('change', () => this.btnGenerate.disabled = !this.inputDate.value);
+                this.inputDate.addEventListener('change', () => {
+                    if (DataLayer.timetableData.length > 0) {
+                        this.btnGenerate.disabled = !this.inputDate.value;
+                    }
+                });
                 this.btnGenerate.addEventListener('click', () => this.handleGenerate());
                 this.studentName.addEventListener('input', () => localStorage.setItem('dapa_name', this.studentName.value));
                 this.studentId.addEventListener('input', () => localStorage.setItem('dapa_id', this.studentId.value));
@@ -361,15 +369,19 @@ HLTDEN005,Assist with dental radiography,Task 1,Clinical Practice,7`;
                 const savedDate = localStorage.getItem('dapa_target_date');
                 if (savedDate) {
                     this.inputDate.value = savedDate;
-                    this.btnGenerate.disabled = false;
-                    this.handleGenerate();
+                    if (DataLayer.timetableData.length > 0) {
+                        this.btnGenerate.disabled = false;
+                        this.handleGenerate();
+                    }
                 }
             },
 
             handleGenerate: function() {
                 const targetDate = this.inputDate.value;
+                if (!targetDate || DataLayer.timetableData.length === 0) return;
+
                 localStorage.setItem('dapa_target_date', targetDate);
-                const data = DataLayer.getStudyData();
+                const data = DataLayer.timetableData;
                 const result = TimetableEngine.calculate(targetDate, data);
 
                 if (result.totalWeeks < 30) this.extensionAlert.classList.remove('hidden');
@@ -382,18 +394,12 @@ HLTDEN005,Assist with dental radiography,Task 1,Clinical Practice,7`;
                 const format = d => d.toLocaleDateString('en-AU');
                 const pace = TimetableEngine.getPaceMetrics(result.totalWeeks);
                 
-                // Dashboard Updates
                 this.statStart.textContent = format(result.startDate);
                 this.statEnd.textContent = format(result.endDate);
-                
-                // Duration Label with Week Count
                 this.statPace.textContent = `${pace.label} (${result.totalWeeks} Weeks)`;
                 
-                // Color matching: Calculated Start and End Date now both use text-dapa-primary
                 this.statStart.className = `text-lg font-bold text-dapa-primary`;
                 this.statEnd.className = `text-lg font-bold text-dapa-primary`;
-                
-                // Pace label maintains its status color for clarity
                 this.statPace.className = `text-lg font-bold ${pace.color}`;
 
                 this.paceBox.classList.remove('hidden');
@@ -405,7 +411,7 @@ HLTDEN005,Assist with dental radiography,Task 1,Clinical Practice,7`;
                 let lastUnitCode = null;
                 let html = '';
 
-                result.schedule.forEach((item, index) => {
+                result.schedule.forEach((item) => {
                     if (item.code !== lastUnitCode) {
                         html += `
                             <tr class="sticky-unit unit-row shadow-sm">
