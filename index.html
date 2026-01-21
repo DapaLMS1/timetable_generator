@@ -5,222 +5,172 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HLT35021 DAPA Assessment Timetable</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --dapa-primary: #532A8C; 
             --dapa-secondary: #C3ACE8; 
             --dapa-background: #F2F2F2; 
-            --dapa-accent-hover: #9D8ABB; 
         }
-        .bg-dapa-primary { background-color: var(--dapa-primary); }
-        .text-dapa-primary { color: var(--dapa-primary); }
-        .bg-dapa-secondary { background-color: var(--dapa-secondary); }
-        .bg-dapa-background { background-color: var(--dapa-background); }
-        .hover\:bg-dapa-accent-hover:hover { background-color: var(--dapa-accent-hover); }
-        
         body { font-family: 'Inter', sans-serif; background-color: var(--dapa-background); }
-
-        /* Editable field styling */
-        .editable-date:focus {
-            outline: 2px solid var(--dapa-primary);
-            background-color: #fff;
-            padding: 2px;
-            border-radius: 4px;
-        }
+        
+        /* Highlight editable cells for the user */
+        .editable-cell:hover { background-color: #f3f0ff; cursor: text; }
+        .editable-cell:focus { outline: 2px solid var(--dapa-primary); background-color: white; }
 
         @media print {
             @page { size: A4 landscape; margin: 10mm; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
-            body { background-color: white !important; margin: 0; padding: 0; }
+            body { background-color: white !important; padding: 0; }
             .max-w-6xl { max-width: none !important; width: 100% !important; box-shadow: none !important; margin: 0 !important; }
-            .timetable-container { overflow: visible !important; max-height: none !important; border: none !important; }
-            table { border-collapse: collapse !important; width: 100% !important; }
-            thead { display: table-header-group !important; }
+            thead { display: table-header-group !important; } /* Repeats headers */
             tr { page-break-inside: avoid !important; }
-            th, td { border: 1px solid #ccc !important; padding: 8px !important; word-wrap: break-word; }
-            thead th { background-color: #532A8C !important; color: white !important; -webkit-print-color-adjust: exact; }
-            .editable-date:focus { outline: none; }
+            th, td { border: 1px solid #ccc !important; padding: 8px !important; }
+            th { background-color: #532A8C !important; color: white !important; -webkit-print-color-adjust: exact; }
         }
-
         .print-only { display: none; }
-        .timetable-container { max-height: 70vh; overflow-y: auto; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
     <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
         
-        <header class="text-center mb-8 pb-4 border-b-2 border-dapa-primary">
-            <img src="dapa-logo.png" alt="DAPA Logo" class="mx-auto h-20 mb-4 object-contain" onerror="this.onerror=null; this.src='https://placehold.co/150x80/532A8C/ffffff?text=DAPA+Logo';" />
-            <h1 class="no-print text-3xl md:text-4xl font-extrabold text-dapa-primary">HLT35021 DAPA Assessment Submission Timetable</h1>
-            <h1 class="print-only text-2xl md:text-3xl font-extrabold text-dapa-primary">Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING</h1>
+        <header class="text-center mb-8 pb-4 border-b-2 border-[#532A8C]">
+            <img src="dapa-logo.png" alt="DAPA Logo" class="mx-auto h-16 mb-4 object-contain" onerror="this.src='https://placehold.co/150x60?text=DAPA+LOGO'">
+            <h1 class="no-print text-3xl font-extrabold text-[#532A8C]">HLT35021 DAPA Assessment Timetable</h1>
+            <h1 class="print-only text-2xl font-bold text-[#532A8C]">Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING</h1>
         </header>
 
-        <div class="print-only mb-8 p-6 border-2 rounded-lg border-dapa-primary">
-            <h2 class="text-xl font-bold text-dapa-primary mb-6 text-center">Student Timetable Summary</h2>
+        <div class="print-only mb-8 p-6 border-2 rounded-lg border-[#532A8C]">
+            <h2 class="text-xl font-bold text-[#532A8C] mb-6 text-center">Student Timetable Summary</h2>
             <div class="grid grid-cols-3 gap-8 text-center">
-                <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">TPP End Date</p>
-                    <p id="display-end-date-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Calculated Start Date</p>
-                    <p id="display-start-date-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Remaining Time</p>
-                    <p id="display-duration-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
-                </div>
+                <div><p class="text-xs font-bold uppercase text-gray-500">TPP End Date</p><p id="p-end" class="text-xl font-extrabold text-[#532A8C] mt-1">-</p></div>
+                <div><p class="text-xs font-bold uppercase text-gray-500">Calculated Start Date</p><p id="p-start" class="text-xl font-extrabold text-[#532A8C] mt-1">-</p></div>
+                <div><p class="text-xs font-bold uppercase text-gray-500">Remaining Time</p><p id="p-dur" class="text-xl font-extrabold text-[#532A8C] mt-1">-</p></div>
             </div>
         </div>
 
-        <form id="timetable-controls-form" class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-dapa-background rounded-lg shadow-inner">
-            <div class="col-span-1"><label class="block text-sm font-medium text-gray-700">Student Name</label><input type="text" id="student-name" class="mt-1 block w-full rounded-md border p-2" placeholder="Jane Doe"></div>
-            <div class="col-span-1"><label class="block text-sm font-medium text-gray-700">Student Number</label><input type="text" id="student-number" class="mt-1 block w-full rounded-md border p-2" placeholder="DAPA-12345"></div>
-            <div class="col-span-1"><label class="block text-sm font-medium text-gray-700">TPP End Date</label><input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border p-2"></div>
-            <div id="data-load-status" class="col-span-1 md:col-span-3 text-center text-sm font-medium text-gray-500 py-1">Loading CSV...</div>
-            <button type="submit" id="generate-button" class="col-span-1 md:col-span-3 bg-dapa-primary text-white py-2 rounded-lg font-semibold hover:bg-dapa-accent-hover disabled:opacity-50" disabled>Generate Timetable</button>
-        </form>
-
-        <div class="flex justify-between items-end mb-4">
-            <h2 class="text-2xl font-bold text-gray-800">Assessment Submission Timetable</h2>
-            <p class="no-print text-xs text-gray-400 italic">Tip: Click on a date to edit (e.g., "Credit Transfer")</p>
+        <div class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-6 bg-gray-50 rounded-lg border">
+            <div><label class="block text-sm font-bold text-gray-700">Student Name</label><input type="text" id="s-name" class="w-full mt-1 p-2 border rounded"></div>
+            <div><label class="block text-sm font-bold text-gray-700">Student Number</label><input type="text" id="s-num" class="w-full mt-1 p-2 border rounded"></div>
+            <div><label class="block text-sm font-bold text-gray-700">TPP End Date</label><input type="date" id="s-date" class="w-full mt-1 p-2 border rounded border-[#532A8C]"></div>
+            <div class="md:col-span-3">
+                <button id="btn-gen" class="w-full bg-[#532A8C] text-white py-3 rounded-lg font-bold hover:bg-[#9D8ABB] transition disabled:opacity-50" disabled>Generate Timetable</button>
+                <p id="load-msg" class="text-center text-xs mt-2 text-gray-500 font-medium">Checking for data file...</p>
+            </div>
         </div>
-        
-        <div class="timetable-container shadow-lg rounded-lg border">
-            <table class="min-w-full divide-y divide-gray-200 table-fixed" id="timetable">
-                <thead class="bg-dapa-primary sticky top-0 z-10">
+
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Submission Schedule</h2>
+            <p class="no-print text-xs italic text-gray-400">Note: You can click any date to manually edit it.</p>
+        </div>
+
+        <div class="overflow-hidden rounded-lg border shadow-sm">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-[#532A8C]">
                     <tr>
-                        <th class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase">Task</th>
-                        <th class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase">Description / Unit of Competency</th>
-                        <th class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase">Latest Submission Date</th>
+                        <th class="w-1/6 px-4 py-3 text-left text-xs font-bold text-white uppercase">Task</th>
+                        <th class="w-3/6 px-4 py-3 text-left text-xs font-bold text-white uppercase">Description</th>
+                        <th class="w-2/6 px-4 py-3 text-center text-xs font-bold text-white uppercase">Submission Date</th>
                     </tr>
                 </thead>
-                <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
-                    <tr><td colspan="3" class="p-8 text-center text-gray-500">Generate a timetable to begin.</td></tr>
+                <tbody id="t-body" class="bg-white divide-y divide-gray-200 text-sm">
+                    <tr><td colspan="3" class="p-10 text-center text-gray-400">Please select a TPP End Date and click Generate.</td></tr>
                 </tbody>
             </table>
         </div>
-        
-        <div class="flex justify-center mt-6 no-print">
-            <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover shadow-md">Print Timetable</button>
+
+        <div class="no-print mt-8 flex justify-center">
+            <button onclick="window.print()" class="bg-[#532A8C] text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-[#9D8ABB]">Print Timetable</button>
         </div>
     </div>
 
     <script>
-        let timetableData = [];
-        const CSV_FILE_PATH = 'TIMETABLE_DATA.csv';
-        const TODAY = (() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; })();
-        const PUBLIC_HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
+        let taskData = [];
+        const HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
 
-        function parseCSV(csvText) {
-            const lines = csvText.trim().split(/\r?\n/);
-            return lines.slice(1).map(line => {
-                const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                if (values.length < 5) return null;
-                return {
-                    UnitCode: values[0].replace(/^"|"$/g, '').trim(),
-                    UnitDescription: values[1].replace(/^"|"$/g, '').trim(),
-                    AssessmentName: values[2].replace(/^"|"$/g, '').trim(),
-                    AssessmentDescription: values[3].replace(/^"|"$/g, '').trim(),
-                    DaysRequired: parseInt(values[4].replace(/^"|"$/g, '').trim(), 10) || 0,
-                };
-            }).filter(item => item !== null);
-        }
+        const $ = (id) => document.getElementById(id);
 
-        function isWeekend(date) { const day = date.getDay(); return day === 0 || day === 6; }
-        function isHoliday(date) {
-            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            return PUBLIC_HOLIDAYS.includes(dateStr);
-        }
-
-        function getWorkingDaysBetween(startDate, endDate) {
-            let count = 0;
-            const current = new Date(startDate.getTime());
-            current.setDate(current.getDate() + 1);
-            while (current <= endDate) {
-                if (!isWeekend(current) && !isHoliday(current)) count++;
-                current.setDate(current.getDate() + 1);
-            }
-            return count;
-        }
-
-        function subtractWorkingDays(baseDate, days, ratio = 1.0) {
-            const required = Math.max(1, Math.round(days * ratio));
-            let current = new Date(baseDate.getTime());
-            current.setDate(current.getDate() - 1);
-            let daysToSubtract = required - 1;
-            while (daysToSubtract > 0 || isWeekend(current) || isHoliday(current)) {
-                if (!isWeekend(current) && !isHoliday(current)) daysToSubtract--;
-                if (daysToSubtract >= 0) current.setDate(current.getDate() - 1);
-            }
-            return current;
-        }
-
-        function formatDate(date) {
-            return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-        }
-
-        async function loadTimetableData() {
+        async function init() {
             try {
-                const response = await fetch(CSV_FILE_PATH);
-                const csvText = await response.text();
-                timetableData = parseCSV(csvText);
-                document.getElementById('data-load-status').textContent = `Loaded ${timetableData.length} tasks.`;
-                document.getElementById('generate-button').disabled = false;
-            } catch (e) { document.getElementById('data-load-status').textContent = "Error loading data."; }
+                const res = await fetch('TIMETABLE_DATA.csv');
+                const text = await res.text();
+                taskData = text.trim().split('\n').slice(1).map(row => {
+                    const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                    return { unit: cols[0], desc: cols[1], task: cols[2], taskDesc: cols[3], days: parseInt(cols[4]) || 1 };
+                });
+                $('load-msg').textContent = "Data ready.";
+                $('load-msg').classList.replace('text-gray-500', 'text-green-600');
+            } catch (e) {
+                $('load-msg').textContent = "CSV file not found. Ensure TIMETABLE_DATA.csv is present.";
+                $('load-msg').classList.replace('text-gray-500', 'text-red-600');
+            }
         }
 
-        function render() {
-            const endDateInput = document.getElementById('course-end-date').value;
-            if (!endDateInput) return;
+        $('s-date').addEventListener('change', () => {
+            $('btn-gen').disabled = !($('s-date').value && taskData.length > 0);
+        });
 
-            const endDate = new Date(endDateInput);
-            const totalRequired = timetableData.reduce((sum, item) => sum + item.DaysRequired, 0);
-            const totalAvailable = getWorkingDaysBetween(TODAY, endDate);
-            let ratio = Math.max(0.8, Math.min(2.0, totalAvailable / totalRequired));
+        function isOff(d) {
+            const s = d.toISOString().split('T')[0];
+            return d.getDay() === 0 || d.getDay() === 6 || HOLIDAYS.includes(s);
+        }
 
-            let nextDate = new Date(endDate);
-            const schedule = [...timetableData].reverse().map(item => {
-                const submission = new Date(nextDate);
-                nextDate = subtractWorkingDays(submission, item.DaysRequired, ratio);
-                return { ...item, SubmissionDate: submission };
-            }).reverse();
+        function subtractDays(date, days) {
+            let d = new Date(date);
+            let count = 0;
+            while (count < days) {
+                d.setDate(d.getDate() - 1);
+                if (!isOff(d)) count++;
+            }
+            return d;
+        }
 
-            const weeks = Math.floor(totalAvailable / 5);
-            ['', '-print'].forEach(s => {
-                document.getElementById('display-start-date' + s).textContent = formatDate(nextDate);
-                document.getElementById('display-end-date' + s).textContent = formatDate(endDate);
-                document.getElementById('display-duration' + s).textContent = `${weeks} Weeks`;
+        function fmt(d) { return d.toLocaleDateString('en-GB'); }
+
+        $('btn-gen').addEventListener('click', () => {
+            const end = new Date($('s-date').value);
+            let current = new Date(end);
+            const schedule = [];
+            
+            // Calculate back from end date
+            [...taskData].reverse().forEach(t => {
+                const subDate = new Date(current);
+                schedule.push({ ...t, subDate });
+                current = subtractDays(subDate, t.days);
             });
 
-            const body = document.getElementById('timetable-body');
+            // Update Summaries
+            const start = schedule[schedule.length - 1].subDate;
+            const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24 * 7));
+            
+            $('p-end').textContent = fmt(end);
+            $('p-start').textContent = fmt(current);
+            $('p-dur').textContent = diff + " Weeks";
+
+            // Build Table
+            const body = $('t-body');
             body.innerHTML = '';
-            let lastUnit = null;
+            let lastU = '';
 
-            schedule.forEach(item => {
-                if (item.UnitCode !== lastUnit) {
-                    const row = document.createElement('tr');
-                    row.className = 'bg-gray-100 font-bold border-t-2 border-dapa-primary';
-                    row.innerHTML = `<td colspan="3" class="px-4 py-2">${item.UnitCode}: ${item.UnitDescription}</td>`;
-                    body.appendChild(row);
+            schedule.reverse().forEach(t => {
+                if (t.unit !== lastU) {
+                    const h = body.insertRow();
+                    h.className = "bg-gray-50 font-bold text-[#532A8C]";
+                    h.innerHTML = `<td colspan="3" class="px-4 py-2 border-t border-b">${t.unit}: ${t.desc}</td>`;
                 }
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-4 py-3 text-sm">${item.AssessmentName}</td>
-                    <td class="px-4 py-3 text-sm">${item.AssessmentDescription}</td>
-                    <td class="px-4 py-3 text-center font-bold text-dapa-primary editable-date" contenteditable="true">${formatDate(item.SubmissionDate)}</td>
+                const r = body.insertRow();
+                r.innerHTML = `
+                    <td class="px-4 py-3 text-gray-600 font-medium">${t.task}</td>
+                    <td class="px-4 py-3 text-gray-500">${t.taskDesc}</td>
+                    <td class="px-4 py-3 text-center font-bold text-[#532A8C] editable-cell" contenteditable="true">${fmt(t.subDate)}</td>
                 `;
-                body.appendChild(row);
-                lastUnit = item.UnitCode;
+                lastU = t.unit;
             });
-        }
+        });
 
-        document.getElementById('timetable-controls-form').addEventListener('submit', e => { e.preventDefault(); render(); });
-        document.getElementById('print-button').addEventListener('click', () => window.print());
-        window.addEventListener('load', loadTimetableData);
+        window.onload = init;
     </script>
 </body>
 </html>
