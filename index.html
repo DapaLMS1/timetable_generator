@@ -58,7 +58,7 @@
                 width: 100% !important;
                 table-layout: auto !important;
             }
-            /* Repeat Headers on Each Page */
+            /* REPEATING HEADERS */
             thead {
                 display: table-header-group !important;
             }
@@ -75,9 +75,6 @@
             thead th {
                 background-color: #532A8C !important;
                 color: white !important;
-            }
-            .unit-header-row {
-                background-color: #f3f4f6 !important;
             }
         }
 
@@ -110,19 +107,19 @@
         <div id="message-box" class="fixed top-4 right-4 z-50 max-w-sm"></div>
 
         <div class="print-only mb-8 p-6 border-2 rounded-lg border-dapa-primary">
-            <h2 class="text-xl font-bold text-dapa-primary mb-6 text-center">Student Timetable Summary</h2>
+            <h2 class="text-xl font-bold text-dapa-primary mb-6">Student Timetable Summary</h2>
             <div class="grid grid-cols-3 gap-8 text-center">
                 <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">TPP End Date</p>
-                    <p id="display-end-date-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
+                    <p class="text-xs text-gray-500 font-bold uppercase">TPP End Date</p>
+                    <p id="display-end-date-print" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Calculated Start Date</p>
-                    <p id="display-start-date-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
+                    <p class="text-xs text-gray-500 font-bold uppercase">Calculated Start Date</p>
+                    <p id="display-start-date-print" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Remaining Time</p>
-                    <p id="display-duration-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
+                    <p class="text-xs text-gray-500 font-bold uppercase">Remaining Time</p>
+                    <p id="display-duration-print" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
                 </div>
             </div>
         </div>
@@ -140,4 +137,222 @@
                 <label for="course-end-date" class="block text-sm font-medium text-gray-700">TPP End Date</label>
                 <input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border">
             </div>
-            <div id="data-load-status" class="col-span-1 md:col-span-3 text-center text-sm font-medium text-gray-500 py-1
+            <div id="data-load-status" class="col-span-1 md:col-span-3 text-center text-sm font-medium text-gray-500 py-1">
+                Loading assessment data from TIMETABLE_DATA.csv...
+            </div>
+            <div class="col-span-1 md:col-span-3">
+                <button type="submit" id="generate-button" class="w-full bg-dapa-primary text-white py-2 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md disabled:opacity-50" disabled>
+                    Generate Timetable
+                </button>
+            </div>
+        </form>
+
+        <div class="no-print mb-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-center border-t border-b py-4">
+            <div>
+                <p class="text-xs text-gray-500 font-medium">TPP End Date</p>
+                <p id="display-end-date" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 font-medium">Calculated Start Date</p>
+                <p id="display-start-date" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 font-medium">Remaining Time</p>
+                <p id="display-duration" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+            </div>
+        </div>
+
+        <div class="no-print space-y-3 mb-6">
+            <div id="time-pressure-message" class="hidden p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg">
+                <p class="font-bold">Start Now</p>
+                <p>You need to start today to finish by the TPP End Date at a normal pace.</p>
+            </div>
+            <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg">
+                <p class="font-bold">Fast Track Required</p>
+                <p>Your study load is condensed by <span id="aggressive-percent" class="font-extrabold"></span>.</p>
+            </div>
+            <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg">
+                <p class="font-bold">Flexible Pace: Great news!</p>
+                <p>Your weekly study pace has been eased by <span id="spread-percent" class="font-extrabold"></span>.</p>
+            </div>
+            <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg">
+                <p class="font-bold">DEADLINE ALERT: The TPP End Date is not possible.</p>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Assessment Submission Timetable</h2>
+        <div class="timetable-container shadow-lg rounded-lg border">
+            <table class="min-w-full divide-y divide-gray-200 table-fixed" id="timetable">
+                <thead class="bg-dapa-primary sticky top-0 z-10">
+                    <tr>
+                        <th scope="col" class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Task</th>
+                        <th scope="col" class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Description / Unit of Competency</th>
+                        <th scope="col" class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Latest Submission Date</th>
+                    </tr>
+                </thead>
+                <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
+                    <tr><td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="flex justify-center mt-6 no-print">
+            <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover shadow-md">
+                Print Timetable
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let timetableData = [];
+        const CSV_FILE_PATH = 'TIMETABLE_DATA.csv';
+        const TODAY = (() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; })();
+        const PUBLIC_HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
+
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            return lines.slice(1).map(line => {
+                const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                if (values.length < 5) return null;
+                return {
+                    UnitCode: values[0].replace(/^"|"$/g, '').trim(),
+                    UnitDescription: values[1].replace(/^"|"$/g, '').trim(),
+                    AssessmentName: values[2].replace(/^"|"$/g, '').trim(),
+                    AssessmentDescription: values[3].replace(/^"|"$/g, '').trim(),
+                    DaysRequired: parseInt(values[4].replace(/^"|"$/g, '').trim(), 10) || 0,
+                };
+            }).filter(item => item !== null);
+        }
+
+        function isWeekend(date) { const day = date.getDay(); return day === 0 || day === 6; }
+        function isHoliday(date) {
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            return PUBLIC_HOLIDAYS.includes(dateStr);
+        }
+
+        function getNextValidDate(date) {
+            const d = new Date(date.getTime()); d.setHours(12, 0, 0, 0);
+            while (isWeekend(d) || isHoliday(d)) d.setDate(d.getDate() + 1);
+            return d;
+        }
+
+        function getPreviousValidDate(date) {
+            const d = new Date(date.getTime()); d.setHours(12, 0, 0, 0);
+            while (isWeekend(d) || isHoliday(d)) d.setDate(d.getDate() - 1);
+            return d;
+        }
+
+        function getWorkingDaysBetween(startDate, endDate) {
+            let count = 0;
+            const current = new Date(startDate.getTime());
+            current.setDate(current.getDate() + 1);
+            while (current <= endDate) {
+                if (!isWeekend(current) && !isHoliday(current)) count++;
+                current.setDate(current.getDate() + 1);
+            }
+            return count;
+        }
+
+        function subtractWorkingDays(baseDate, days, ratio = 1.0) {
+            const required = Math.max(1, Math.round(days * ratio));
+            let current = getPreviousValidDate(baseDate);
+            let daysToSubtract = required - 1;
+            while (daysToSubtract > 0) {
+                current.setDate(current.getDate() - 1);
+                if (!isWeekend(current) && !isHoliday(current)) daysToSubtract--;
+            }
+            return getPreviousValidDate(current);
+        }
+
+        function formatDate(date) {
+            return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        }
+
+        async function loadTimetableData() {
+            try {
+                const response = await fetch(CSV_FILE_PATH);
+                const csvText = await response.text();
+                timetableData = parseCSV(csvText);
+                document.getElementById('data-load-status').textContent = `Loaded ${timetableData.length} tasks.`;
+                document.getElementById('data-load-status').classList.add('text-green-600');
+                document.getElementById('generate-button').disabled = false;
+            } catch (e) {
+                document.getElementById('data-load-status').textContent = "Error loading data.";
+            }
+        }
+
+        function calculateSchedule(data, endDateStr, ratio) {
+            let nextDate = getPreviousValidDate(new Date(endDateStr));
+            const schedule = [];
+            const reversed = [...data].reverse();
+            for (const item of reversed) {
+                const submission = nextDate;
+                const start = subtractWorkingDays(submission, item.DaysRequired, ratio);
+                schedule.push({ ...item, SubmissionDate: submission, distributionRatio: ratio });
+                nextDate = start;
+            }
+            return { schedule: schedule.reverse(), startDate: getNextValidDate(nextDate) };
+        }
+
+        function render() {
+            const endDateInput = document.getElementById('course-end-date').value;
+            if (!endDateInput) return;
+
+            const endDate = new Date(endDateInput);
+            const totalRequired = timetableData.reduce((sum, item) => sum + item.DaysRequired, 0);
+            const totalAvailable = getWorkingDaysBetween(TODAY, getPreviousValidDate(endDate));
+
+            let ratio = 1.0;
+            document.querySelectorAll('[id$="-message"]').forEach(el => el.classList.add('hidden'));
+
+            if (totalAvailable < totalRequired) {
+                ratio = 0.8;
+                document.getElementById('aggressive-percent').textContent = '20%';
+                document.getElementById('aggressive-message').classList.remove('hidden');
+            } else if (totalAvailable / totalRequired > 1.05) {
+                ratio = totalAvailable / totalRequired;
+                document.getElementById('spread-percent').textContent = `${Math.round((ratio - 1) * 100)}%`;
+                document.getElementById('distributed-time-message').classList.remove('hidden');
+            }
+
+            const result = calculateSchedule(timetableData, endDateInput, ratio);
+            if (result.startDate < TODAY) document.getElementById('time-pressure-message').classList.remove('hidden');
+
+            const weeks = Math.floor(totalAvailable / 5);
+            const durText = `${weeks} Weeks`;
+
+            // Update Fields
+            ['', '-print'].forEach(s => {
+                document.getElementById('display-start-date' + s).textContent = formatDate(result.startDate);
+                document.getElementById('display-end-date' + s).textContent = formatDate(endDate);
+                document.getElementById('display-duration' + s).textContent = durText;
+            });
+
+            const body = document.getElementById('timetable-body');
+            body.innerHTML = '';
+            let lastUnit = null;
+
+            result.schedule.forEach(item => {
+                if (item.UnitCode !== lastUnit) {
+                    const row = document.createElement('tr');
+                    row.className = 'bg-gray-100 font-bold border-t-4 border-dapa-primary';
+                    row.innerHTML = `<td colspan="3" class="px-4 py-2">${item.UnitCode}: ${item.UnitDescription}</td>`;
+                    body.appendChild(row);
+                }
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm">${item.AssessmentName}</td>
+                    <td class="px-4 py-3 text-sm">${item.AssessmentDescription}</td>
+                    <td class="px-4 py-3 text-center font-bold text-dapa-primary">${formatDate(item.SubmissionDate)}</td>
+                `;
+                body.appendChild(row);
+                lastUnit = item.UnitCode;
+            });
+        }
+
+        document.getElementById('timetable-controls-form').addEventListener('submit', e => { e.preventDefault(); render(); });
+        document.getElementById('print-button').addEventListener('click', () => window.print());
+        window.addEventListener('load', loadTimetableData);
+    </script>
+</body>
+</html>
