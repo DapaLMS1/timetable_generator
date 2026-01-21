@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght100..900&display=swap" rel="stylesheet">
     <style>
-        /* Define DAPA Color Palette */
         :root {
             --dapa-primary: #532A8C; 
             --dapa-secondary: #C3ACE8; 
@@ -17,75 +16,36 @@
         .bg-dapa-primary { background-color: var(--dapa-primary); }
         .text-dapa-primary { color: var(--dapa-primary); }
         .bg-dapa-secondary { background-color: var(--dapa-secondary); }
-        .text-dapa-secondary { color: var(--dapa-secondary); }
         .bg-dapa-background { background-color: var(--dapa-background); }
         .hover\:bg-dapa-accent-hover:hover { background-color: var(--dapa-accent-hover); }
-        .border-dapa-primary { border-color: var(--dapa-primary); }
         
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--dapa-background);
+        body { font-family: 'Inter', sans-serif; background-color: var(--dapa-background); }
+
+        /* Editable field styling */
+        .editable-date:focus {
+            outline: 2px solid var(--dapa-primary);
+            background-color: #fff;
+            padding: 2px;
+            border-radius: 4px;
         }
 
-        /* --- PRINT STYLES --- */
         @media print {
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
+            @page { size: A4 landscape; margin: 10mm; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
-            body { 
-                background-color: white !important; 
-                margin: 0; 
-                padding: 0; 
-            }
-            .max-w-6xl {
-                max-width: none !important;
-                width: 100% !important;
-                box-shadow: none !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                border: none !important;
-            }
-            .timetable-container { 
-                overflow: visible !important; 
-                max-height: none !important;
-                border: none !important;
-            }
-            table { 
-                border-collapse: collapse !important; 
-                width: 100% !important;
-                table-layout: auto !important;
-            }
-            /* THIS REPEATS THE HEADERS ON EVERY PAGE */
-            thead {
-                display: table-header-group !important;
-            }
-            tr {
-                page-break-inside: avoid !important;
-            }
-            th, td { 
-                border: 1px solid #ccc !important;
-                padding: 8px !important;
-                word-wrap: break-word;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            thead th {
-                background-color: #532A8C !important;
-                color: white !important;
-            }
-            .unit-header-row {
-                background-color: #f3f4f6 !important;
-            }
+            body { background-color: white !important; margin: 0; padding: 0; }
+            .max-w-6xl { max-width: none !important; width: 100% !important; box-shadow: none !important; margin: 0 !important; }
+            .timetable-container { overflow: visible !important; max-height: none !important; border: none !important; }
+            table { border-collapse: collapse !important; width: 100% !important; }
+            thead { display: table-header-group !important; }
+            tr { page-break-inside: avoid !important; }
+            th, td { border: 1px solid #ccc !important; padding: 8px !important; word-wrap: break-word; }
+            thead th { background-color: #532A8C !important; color: white !important; -webkit-print-color-adjust: exact; }
+            .editable-date:focus { outline: none; }
         }
 
         .print-only { display: none; }
-        .timetable-container { 
-            max-height: 70vh; 
-            overflow-y: auto; 
-        }
+        .timetable-container { max-height: 70vh; overflow-y: auto; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -93,21 +53,10 @@
     <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
         
         <header class="text-center mb-8 pb-4 border-b-2 border-dapa-primary">
-            <img 
-                src="dapa-logo.png" 
-                alt="DAPA Logo" 
-                class="mx-auto h-20 mb-4 object-contain" 
-                onerror="this.onerror=null; this.src='https://placehold.co/150x80/532A8C/ffffff?text=DAPA+Logo';" 
-            />
-            <h1 class="no-print text-3xl md:text-4xl font-extrabold text-dapa-primary">
-                HLT35021 DAPA Assessment Submission Timetable
-            </h1>
-            <h1 class="print-only text-2xl md:text-3xl font-extrabold text-dapa-primary">
-                Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING
-            </h1>
+            <img src="dapa-logo.png" alt="DAPA Logo" class="mx-auto h-20 mb-4 object-contain" onerror="this.onerror=null; this.src='https://placehold.co/150x80/532A8C/ffffff?text=DAPA+Logo';" />
+            <h1 class="no-print text-3xl md:text-4xl font-extrabold text-dapa-primary">HLT35021 DAPA Assessment Submission Timetable</h1>
+            <h1 class="print-only text-2xl md:text-3xl font-extrabold text-dapa-primary">Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING</h1>
         </header>
-
-        <div id="message-box" class="fixed top-4 right-4 z-50 max-w-sm"></div>
 
         <div class="print-only mb-8 p-6 border-2 rounded-lg border-dapa-primary">
             <h2 class="text-xl font-bold text-dapa-primary mb-6 text-center">Student Timetable Summary</h2>
@@ -128,81 +77,35 @@
         </div>
 
         <form id="timetable-controls-form" class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-dapa-background rounded-lg shadow-inner">
-            <div class="col-span-1">
-                <label for="student-name" class="block text-sm font-medium text-gray-700">Student Name</label>
-                <input type="text" id="student-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border" placeholder="e.g., Jane Doe">
-            </div>
-            <div class="col-span-1">
-                <label for="student-number" class="block text-sm font-medium text-gray-700">Student Number</label>
-                <input type="text" id="student-number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border" placeholder="e.g., DAPA-12345">
-            </div>
-            <div class="col-span-1">
-                <label for="course-end-date" class="block text-sm font-medium text-gray-700">TPP End Date</label>
-                <input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border">
-            </div>
-            <div id="data-load-status" class="col-span-1 md:col-span-3 text-center text-sm font-medium text-gray-500 py-1">
-                Loading assessment data from TIMETABLE_DATA.csv...
-            </div>
-            <div class="col-span-1 md:col-span-3">
-                <button type="submit" id="generate-button" class="w-full bg-dapa-primary text-white py-2 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md disabled:opacity-50" disabled>
-                    Generate Timetable
-                </button>
-            </div>
+            <div class="col-span-1"><label class="block text-sm font-medium text-gray-700">Student Name</label><input type="text" id="student-name" class="mt-1 block w-full rounded-md border p-2" placeholder="Jane Doe"></div>
+            <div class="col-span-1"><label class="block text-sm font-medium text-gray-700">Student Number</label><input type="text" id="student-number" class="mt-1 block w-full rounded-md border p-2" placeholder="DAPA-12345"></div>
+            <div class="col-span-1"><label class="block text-sm font-medium text-gray-700">TPP End Date</label><input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border p-2"></div>
+            <div id="data-load-status" class="col-span-1 md:col-span-3 text-center text-sm font-medium text-gray-500 py-1">Loading CSV...</div>
+            <button type="submit" id="generate-button" class="col-span-1 md:col-span-3 bg-dapa-primary text-white py-2 rounded-lg font-semibold hover:bg-dapa-accent-hover disabled:opacity-50" disabled>Generate Timetable</button>
         </form>
 
-        <div class="no-print mb-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-center border-t border-b py-4">
-            <div>
-                <p class="text-xs text-gray-500 font-medium">TPP End Date</p>
-                <p id="display-end-date" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 font-medium">Calculated Start Date</p>
-                <p id="display-start-date" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 font-medium">Remaining Time</p>
-                <p id="display-duration" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
-            </div>
+        <div class="flex justify-between items-end mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Assessment Submission Timetable</h2>
+            <p class="no-print text-xs text-gray-400 italic">Tip: Click on a date to edit (e.g., "Credit Transfer")</p>
         </div>
-
-        <div class="no-print space-y-3 mb-6">
-            <div id="time-pressure-message" class="hidden p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg">
-                <p class="font-bold">Start Now</p>
-                <p>You need to start today to finish by the TPP End Date at a normal pace.</p>
-            </div>
-            <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg">
-                <p class="font-bold">Fast Track Required</p>
-                <p>Your study load is condensed by <span id="aggressive-percent" class="font-extrabold"></span>.</p>
-            </div>
-            <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg">
-                <p class="font-bold">Flexible Pace: Great news!</p>
-                <p>Your weekly study pace has been eased by <span id="spread-percent" class="font-extrabold"></span>.</p>
-            </div>
-            <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg">
-                <p class="font-bold">DEADLINE ALERT: The TPP End Date is not possible.</p>
-            </div>
-        </div>
-
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Assessment Submission Timetable</h2>
+        
         <div class="timetable-container shadow-lg rounded-lg border">
             <table class="min-w-full divide-y divide-gray-200 table-fixed" id="timetable">
                 <thead class="bg-dapa-primary sticky top-0 z-10">
                     <tr>
-                        <th scope="col" class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Task</th>
-                        <th scope="col" class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Description / Unit of Competency</th>
-                        <th scope="col" class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Latest Submission Date</th>
+                        <th class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase">Task</th>
+                        <th class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase">Description / Unit of Competency</th>
+                        <th class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase">Latest Submission Date</th>
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
-                    <tr><td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td></tr>
+                    <tr><td colspan="3" class="p-8 text-center text-gray-500">Generate a timetable to begin.</td></tr>
                 </tbody>
             </table>
         </div>
         
         <div class="flex justify-center mt-6 no-print">
-            <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover shadow-md">
-                Print Timetable
-            </button>
+            <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover shadow-md">Print Timetable</button>
         </div>
     </div>
 
@@ -233,18 +136,6 @@
             return PUBLIC_HOLIDAYS.includes(dateStr);
         }
 
-        function getNextValidDate(date) {
-            const d = new Date(date.getTime()); d.setHours(12, 0, 0, 0);
-            while (isWeekend(d) || isHoliday(d)) d.setDate(d.getDate() + 1);
-            return d;
-        }
-
-        function getPreviousValidDate(date) {
-            const d = new Date(date.getTime()); d.setHours(12, 0, 0, 0);
-            while (isWeekend(d) || isHoliday(d)) d.setDate(d.getDate() - 1);
-            return d;
-        }
-
         function getWorkingDaysBetween(startDate, endDate) {
             let count = 0;
             const current = new Date(startDate.getTime());
@@ -258,13 +149,14 @@
 
         function subtractWorkingDays(baseDate, days, ratio = 1.0) {
             const required = Math.max(1, Math.round(days * ratio));
-            let current = getPreviousValidDate(baseDate);
+            let current = new Date(baseDate.getTime());
+            current.setDate(current.getDate() - 1);
             let daysToSubtract = required - 1;
-            while (daysToSubtract > 0) {
-                current.setDate(current.getDate() - 1);
+            while (daysToSubtract > 0 || isWeekend(current) || isHoliday(current)) {
                 if (!isWeekend(current) && !isHoliday(current)) daysToSubtract--;
+                if (daysToSubtract >= 0) current.setDate(current.getDate() - 1);
             }
-            return getPreviousValidDate(current);
+            return current;
         }
 
         function formatDate(date) {
@@ -277,24 +169,8 @@
                 const csvText = await response.text();
                 timetableData = parseCSV(csvText);
                 document.getElementById('data-load-status').textContent = `Loaded ${timetableData.length} tasks.`;
-                document.getElementById('data-load-status').classList.add('text-green-600');
                 document.getElementById('generate-button').disabled = false;
-            } catch (e) {
-                document.getElementById('data-load-status').textContent = "Error loading data.";
-            }
-        }
-
-        function calculateSchedule(data, endDateStr, ratio) {
-            let nextDate = getPreviousValidDate(new Date(endDateStr));
-            const schedule = [];
-            const reversed = [...data].reverse();
-            for (const item of reversed) {
-                const submission = nextDate;
-                const start = subtractWorkingDays(submission, item.DaysRequired, ratio);
-                schedule.push({ ...item, SubmissionDate: submission, distributionRatio: ratio });
-                nextDate = start;
-            }
-            return { schedule: schedule.reverse(), startDate: getNextValidDate(nextDate) };
+            } catch (e) { document.getElementById('data-load-status').textContent = "Error loading data."; }
         }
 
         function render() {
@@ -303,42 +179,31 @@
 
             const endDate = new Date(endDateInput);
             const totalRequired = timetableData.reduce((sum, item) => sum + item.DaysRequired, 0);
-            const totalAvailable = getWorkingDaysBetween(TODAY, getPreviousValidDate(endDate));
+            const totalAvailable = getWorkingDaysBetween(TODAY, endDate);
+            let ratio = Math.max(0.8, Math.min(2.0, totalAvailable / totalRequired));
 
-            let ratio = 1.0;
-            document.querySelectorAll('[id$="-message"]').forEach(el => el.classList.add('hidden'));
-
-            if (totalAvailable < totalRequired) {
-                ratio = 0.8;
-                document.getElementById('aggressive-percent').textContent = '20%';
-                document.getElementById('aggressive-message').classList.remove('hidden');
-            } else if (totalAvailable / totalRequired > 1.05) {
-                ratio = totalAvailable / totalRequired;
-                document.getElementById('spread-percent').textContent = `${Math.round((ratio - 1) * 100)}%`;
-                document.getElementById('distributed-time-message').classList.remove('hidden');
-            }
-
-            const result = calculateSchedule(timetableData, endDateInput, ratio);
-            if (result.startDate < TODAY) document.getElementById('time-pressure-message').classList.remove('hidden');
+            let nextDate = new Date(endDate);
+            const schedule = [...timetableData].reverse().map(item => {
+                const submission = new Date(nextDate);
+                nextDate = subtractWorkingDays(submission, item.DaysRequired, ratio);
+                return { ...item, SubmissionDate: submission };
+            }).reverse();
 
             const weeks = Math.floor(totalAvailable / 5);
-            const durText = `${weeks} Weeks`;
-
-            // Update Screen and Print Summary
             ['', '-print'].forEach(s => {
-                document.getElementById('display-start-date' + s).textContent = formatDate(result.startDate);
+                document.getElementById('display-start-date' + s).textContent = formatDate(nextDate);
                 document.getElementById('display-end-date' + s).textContent = formatDate(endDate);
-                document.getElementById('display-duration' + s).textContent = durText;
+                document.getElementById('display-duration' + s).textContent = `${weeks} Weeks`;
             });
 
             const body = document.getElementById('timetable-body');
             body.innerHTML = '';
             let lastUnit = null;
 
-            result.schedule.forEach(item => {
+            schedule.forEach(item => {
                 if (item.UnitCode !== lastUnit) {
                     const row = document.createElement('tr');
-                    row.className = 'bg-gray-100 font-bold border-t-4 border-dapa-primary unit-header-row';
+                    row.className = 'bg-gray-100 font-bold border-t-2 border-dapa-primary';
                     row.innerHTML = `<td colspan="3" class="px-4 py-2">${item.UnitCode}: ${item.UnitDescription}</td>`;
                     body.appendChild(row);
                 }
@@ -346,7 +211,7 @@
                 row.innerHTML = `
                     <td class="px-4 py-3 text-sm">${item.AssessmentName}</td>
                     <td class="px-4 py-3 text-sm">${item.AssessmentDescription}</td>
-                    <td class="px-4 py-3 text-center font-bold text-dapa-primary">${formatDate(item.SubmissionDate)}</td>
+                    <td class="px-4 py-3 text-center font-bold text-dapa-primary editable-date" contenteditable="true">${formatDate(item.SubmissionDate)}</td>
                 `;
                 body.appendChild(row);
                 lastUnit = item.UnitCode;
