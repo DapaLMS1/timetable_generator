@@ -58,7 +58,7 @@
                 width: 100% !important;
                 table-layout: auto !important;
             }
-            /* REPEATING HEADERS */
+            /* THIS REPEATS THE HEADERS ON EVERY PAGE */
             thead {
                 display: table-header-group !important;
             }
@@ -75,6 +75,9 @@
             thead th {
                 background-color: #532A8C !important;
                 color: white !important;
+            }
+            .unit-header-row {
+                background-color: #f3f4f6 !important;
             }
         }
 
@@ -107,19 +110,19 @@
         <div id="message-box" class="fixed top-4 right-4 z-50 max-w-sm"></div>
 
         <div class="print-only mb-8 p-6 border-2 rounded-lg border-dapa-primary">
-            <h2 class="text-xl font-bold text-dapa-primary mb-6">Student Timetable Summary</h2>
+            <h2 class="text-xl font-bold text-dapa-primary mb-6 text-center">Student Timetable Summary</h2>
             <div class="grid grid-cols-3 gap-8 text-center">
                 <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase">TPP End Date</p>
-                    <p id="display-end-date-print" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">TPP End Date</p>
+                    <p id="display-end-date-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase">Calculated Start Date</p>
-                    <p id="display-start-date-print" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Calculated Start Date</p>
+                    <p id="display-start-date-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 font-bold uppercase">Remaining Time</p>
-                    <p id="display-duration-print" class="text-xl font-extrabold text-dapa-primary mt-1">N/A</p>
+                    <p class="text-xs text-gray-500 font-bold uppercase tracking-wider">Remaining Time</p>
+                    <p id="display-duration-print" class="text-xl font-extrabold text-dapa-primary mt-2">N/A</p>
                 </div>
             </div>
         </div>
@@ -321,7 +324,7 @@
             const weeks = Math.floor(totalAvailable / 5);
             const durText = `${weeks} Weeks`;
 
-            // Update Fields
+            // Update Screen and Print Summary
             ['', '-print'].forEach(s => {
                 document.getElementById('display-start-date' + s).textContent = formatDate(result.startDate);
                 document.getElementById('display-end-date' + s).textContent = formatDate(endDate);
@@ -335,7 +338,7 @@
             result.schedule.forEach(item => {
                 if (item.UnitCode !== lastUnit) {
                     const row = document.createElement('tr');
-                    row.className = 'bg-gray-100 font-bold border-t-4 border-dapa-primary';
+                    row.className = 'bg-gray-100 font-bold border-t-4 border-dapa-primary unit-header-row';
                     row.innerHTML = `<td colspan="3" class="px-4 py-2">${item.UnitCode}: ${item.UnitDescription}</td>`;
                     body.appendChild(row);
                 }
