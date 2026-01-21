@@ -14,9 +14,22 @@
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--dapa-background); }
         
-        /* Highlight editable cells for the user */
+        /* FIX: Outline was being clipped on the right. 
+           Using inset box-shadow or a small margin/padding fix. */
+        .editable-cell {
+            transition: all 0.2s;
+            border: 2px solid transparent; /* Reserve space */
+        }
         .editable-cell:hover { background-color: #f3f0ff; cursor: text; }
-        .editable-cell:focus { outline: 2px solid var(--dapa-primary); background-color: white; }
+        
+        /* Updated Focus Style to prevent clipping */
+        .editable-cell:focus { 
+            outline: none; 
+            border-color: var(--dapa-primary);
+            background-color: white;
+            box-shadow: 0 0 0 2px rgba(83, 42, 140, 0.2);
+            border-radius: 4px;
+        }
 
         @media print {
             @page { size: A4 landscape; margin: 10mm; }
@@ -24,7 +37,7 @@
             .print-only { display: block !important; }
             body { background-color: white !important; padding: 0; }
             .max-w-6xl { max-width: none !important; width: 100% !important; box-shadow: none !important; margin: 0 !important; }
-            thead { display: table-header-group !important; } /* Repeats headers */
+            thead { display: table-header-group !important; } 
             tr { page-break-inside: avoid !important; }
             th, td { border: 1px solid #ccc !important; padding: 8px !important; }
             th { background-color: #532A8C !important; color: white !important; -webkit-print-color-adjust: exact; }
@@ -63,11 +76,11 @@
 
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-bold text-gray-800">Submission Schedule</h2>
-            <p class="no-print text-xs italic text-gray-400">Note: You can click any date to manually edit it.</p>
+            <p class="no-print text-xs italic text-gray-400">Tip: Click any date to manually edit (e.g. for Credit Transfer)</p>
         </div>
 
         <div class="overflow-hidden rounded-lg border shadow-sm">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="min-w-full divide-y divide-gray-200" style="border-collapse: separate; border-spacing: 0;">
                 <thead class="bg-[#532A8C]">
                     <tr>
                         <th class="w-1/6 px-4 py-3 text-left text-xs font-bold text-white uppercase">Task</th>
@@ -103,7 +116,7 @@
                 $('load-msg').textContent = "Data ready.";
                 $('load-msg').classList.replace('text-gray-500', 'text-green-600');
             } catch (e) {
-                $('load-msg').textContent = "CSV file not found. Ensure TIMETABLE_DATA.csv is present.";
+                $('load-msg').textContent = "CSV file not found.";
                 $('load-msg').classList.replace('text-gray-500', 'text-red-600');
             }
         }
@@ -134,14 +147,12 @@
             let current = new Date(end);
             const schedule = [];
             
-            // Calculate back from end date
             [...taskData].reverse().forEach(t => {
                 const subDate = new Date(current);
                 schedule.push({ ...t, subDate });
                 current = subtractDays(subDate, t.days);
             });
 
-            // Update Summaries
             const start = schedule[schedule.length - 1].subDate;
             const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24 * 7));
             
@@ -149,7 +160,6 @@
             $('p-start').textContent = fmt(current);
             $('p-dur').textContent = diff + " Weeks";
 
-            // Build Table
             const body = $('t-body');
             body.innerHTML = '';
             let lastU = '';
@@ -164,7 +174,7 @@
                 r.innerHTML = `
                     <td class="px-4 py-3 text-gray-600 font-medium">${t.task}</td>
                     <td class="px-4 py-3 text-gray-500">${t.taskDesc}</td>
-                    <td class="px-4 py-3 text-center font-bold text-[#532A8C] editable-cell" contenteditable="true">${fmt(t.subDate)}</td>
+                    <td class="px-4 py-3 text-center"><div class="editable-cell font-bold text-[#532A8C] p-1" contenteditable="true">${fmt(t.subDate)}</div></td>
                 `;
                 lastU = t.unit;
             });
