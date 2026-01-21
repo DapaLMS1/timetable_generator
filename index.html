@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HLT35021 DAPA Assessment Timetable</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght100..900&display=swap" rel="stylesheet">
     <style>
         /* Define DAPA Color Palette */
@@ -30,33 +28,75 @@
             font-family: 'Inter', sans-serif;
             background-color: var(--dapa-background);
         }
-        /* Print styles */
+
+        /* --- PRINT STYLES --- */
         @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             body { 
-                background-color: white; 
+                background-color: white !important; 
                 margin: 0; 
                 padding: 0; 
             }
-            .timetable-row { page-break-inside: avoid; }
-            .container { 
-                box-shadow: none; 
-                margin: 0; 
-                padding: 10mm; 
-                width: auto;
+            /* Remove container restrictions for print */
+            .max-w-6xl {
+                max-width: none !important;
+                width: 100% !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
             }
-            .timetable-container { overflow: visible !important; }
-            .table { border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; }
-            
-            /* Enforce high-contrast table header in print */
-            .timetable-container thead { background-color: var(--dapa-primary) !important; }
+            /* Ensure the table expands and allows header repetition */
+            .timetable-container { 
+                overflow: visible !important; 
+                max-height: none !important;
+                border: none !important;
+            }
+            table { 
+                border-collapse: collapse !important; 
+                width: 100% !important;
+                table-layout: auto !important;
+            }
+            /* Repeated Headers Logic */
+            thead {
+                display: table-header-group !important;
+                position: static !important; /* Override sticky positioning */
+            }
+            tr {
+                page-break-inside: avoid !important;
+            }
+            .timetable-row, .unit-header-row { 
+                page-break-inside: avoid !important; 
+            }
+            th, td { 
+                border: 1px solid #ccc !important;
+                padding: 8px !important;
+                word-wrap: break-word;
+                /* Force background colors in browsers */
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            thead th {
+                background-color: #532A8C !important;
+                color: white !important;
+            }
+            /* Adjust the summary block for landscape width */
+            .summary-grid {
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 10px !important;
+            }
         }
+
         .print-only { display: none; }
         .timetable-container { 
-            max-height: 70vh; /* Limit height for viewing */
-            overflow-y: auto; /* Enable scroll if content exceeds height */
+            max-height: 70vh; 
+            overflow-y: auto; 
         }
     </style>
 </head>
@@ -64,9 +104,7 @@
 
     <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
         
-        <!-- Header -->
         <header class="text-center mb-8 pb-4 border-b-2 border-dapa-primary">
-            <!-- Logo - Visible on screen and print -->
             <img 
                 src="dapa-logo.png" 
                 alt="DAPA Logo" 
@@ -74,24 +112,19 @@
                 onerror="this.onerror=null; this.src='https://placehold.co/150x80/532A8C/ffffff?text=DAPA+Logo';" 
             />
             
-            <!-- This heading is only visible on the screen -->
             <h1 class="no-print text-3xl md:text-4xl font-extrabold text-dapa-primary">
                 HLT35021 DAPA Assessment Submission Timetable
             </h1>
-            <!-- This heading is only visible when printing/generating PDF -->
             <h1 class="print-only text-2xl md:text-3xl font-extrabold text-dapa-primary">
                 Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING
             </h1>
-            <!-- Removed the messy "Submission Timeline Calculation" descriptive text -->
         </header>
 
-        <!-- Message Box (Alerts/Notifications) -->
         <div id="message-box" class="fixed top-4 right-4 z-50 max-w-sm"></div>
 
-        <!-- Print-Only Info Block -->
         <div class="print-only mb-6 p-4 border rounded-lg border-gray-300">
             <h2 class="text-xl font-bold text-dapa-primary mb-2">Student Timetable Summary</h2>
-            <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="summary-grid grid grid-cols-2 gap-2 text-sm">
                 <p><strong>Student Name:</strong> <span id="print-info-name" class="font-semibold"></span></p>
                 <p><strong>Student Number:</strong> <span id="print-info-number" class="font-semibold"></span></p>
                 <p><strong>Calculated Start Date:</strong> <span id="display-start-date-print" class="font-semibold"></span></p>
@@ -101,33 +134,22 @@
             <p class="text-xs italic mt-2">This timetable is calculated based on the DAPA standard working week (5 days) and the TPP End Date.</p>
         </div>
 
-        <!-- Control Panel Form -->
         <form id="timetable-controls-form" class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-4 bg-dapa-background rounded-lg shadow-inner">
-            
-            <!-- Student Name -->
             <div class="col-span-1">
                 <label for="student-name" class="block text-sm font-medium text-gray-700">Student Name</label>
                 <input type="text" id="student-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border" placeholder="e.g., Jane Doe">
             </div>
-
-            <!-- Student Number -->
             <div class="col-span-1">
                 <label for="student-number" class="block text-sm font-medium text-gray-700">Student Number</label>
                 <input type="text" id="student-number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border" placeholder="e.g., DAPA-12345">
             </div>
-
-            <!-- TPP End Date -->
             <div class="col-span-1">
                 <label for="course-end-date" class="block text-sm font-medium text-gray-700">TPP End Date</label>
                 <input type="date" id="course-end-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-dapa-primary focus:ring focus:ring-dapa-primary focus:ring-opacity-50 p-2 border">
             </div>
-            
-            <!-- Data Loading Status -->
             <div id="data-load-status" class="col-span-1 md:col-span-3 text-center text-sm font-medium text-gray-500 py-1">
                 Loading assessment data from TIMETABLE_DATA.csv...
             </div>
-
-            <!-- Generate Button -->
             <div class="col-span-1 md:col-span-3">
                 <button type="submit" id="generate-button" class="w-full bg-dapa-primary text-white py-2 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md disabled:opacity-50" disabled>
                     Generate Timetable
@@ -135,7 +157,6 @@
             </div>
         </form>
 
-        <!-- Dynamic Information Display -->
         <div class="mb-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-center border-t border-b py-4">
             <div>
                 <p class="text-xs text-gray-500 font-medium">TPP End Date</p>
@@ -151,65 +172,41 @@
             </div>
         </div>
 
-        <!-- Alert and Warning Messages -->
         <div class="no-print space-y-3 mb-6">
-            
-            <!-- Start Now Message -->
             <div id="time-pressure-message" class="hidden p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg" role="alert">
                 <p class="font-bold">Start Now</p>
-                <p>Your timetable shows you need to start today to finish by the TPP End Date at a normal pace. Please begin your work immediately.</p>
+                <p>Your timetable shows you need to start today to finish by the TPP End Date at a normal pace.</p>
             </div>
-            
-            <!-- Fast Track Message -->
             <div id="aggressive-message" class="hidden p-3 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-lg" role="alert">
                 <p class="font-bold">Fast Track Required</p>
-                <p>Your study load is condensed by <span id="aggressive-percent" class="font-extrabold"></span>. This is a demanding schedule and requires you to dedicate more time each week to complete the work.</p>
+                <p>Your study load is condensed by <span id="aggressive-percent" class="font-extrabold"></span>.</p>
             </div>
-            
-            <!-- Flexible Pace Message -->
             <div id="distributed-time-message" class="hidden p-3 bg-green-100 border-l-4 border-green-500 text-green-800 rounded-lg" role="alert">
                 <p class="font-bold">Flexible Pace: Great news!</p>
-                <p>Because you have extra time before the TPP End Date, your weekly study pace has been eased by <span id="spread-percent" class="font-extrabold"></span>. This gives you more flexibility.</p>
+                <p>Your weekly study pace has been eased by <span id="spread-percent" class="font-extrabold"></span>.</p>
             </div>
-
-            <!-- Deadline Alert Message -->
             <div id="critical-warning-message" class="hidden p-3 bg-red-500 border-l-4 border-red-800 text-white rounded-lg" role="alert">
                 <p class="font-bold">DEADLINE ALERT: The TPP End Date is not possible.</p>
-                <p>Even with the fastest possible schedule, you cannot finish in time. Action: Please ask your trainer for an extension or choose an earlier assessment end date.</p>
+                <p>Even with the fastest possible schedule, you cannot finish in time.</p>
             </div>
         </div>
 
-        <!-- Timetable -->
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Assessment Submission Timetable</h2>
-        
         <div class="timetable-container shadow-lg rounded-lg border">
-            <!-- Table Header now uses solid bg-dapa-primary for better contrast -->
             <table class="min-w-full divide-y divide-gray-200 table-fixed" id="timetable">
                 <thead class="bg-dapa-primary sticky top-0 z-10">
                     <tr>
-                        <th scope="col" class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                            Task
-                        </th>
-                        <th scope="col" class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">
-                            Description / Unit of Competency
-                        </th>
-                        <th scope="col" class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">
-                            Latest Submission Date
-                        </th>
+                        <th scope="col" class="w-1/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Task</th>
+                        <th scope="col" class="w-6/12 px-4 py-3 text-left text-xs font-bold text-white uppercase tracking-wider">Description / Unit of Competency</th>
+                        <th scope="col" class="w-4/12 px-4 py-3 text-center text-xs font-bold text-white uppercase tracking-wider">Latest Submission Date</th>
                     </tr>
                 </thead>
                 <tbody id="timetable-body" class="bg-white divide-y divide-gray-200">
-                    <!-- Timetable rows will be rendered here by JavaScript -->
-                    <tr>
-                        <td colspan="3" class="p-8 text-center text-gray-500">
-                            Loading Timetable Data...
-                        </td>
-                    </tr>
+                    <tr><td colspan="3" class="p-8 text-center text-gray-500">Loading Timetable Data...</td></tr>
                 </tbody>
             </table>
         </div>
         
-        <!-- Action Buttons -->
         <div class="flex justify-center mt-6 no-print" id="print-button-container">
             <button id="print-button" class="bg-dapa-primary text-white py-2 px-6 rounded-lg font-semibold hover:bg-dapa-accent-hover transition duration-150 shadow-md flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-2">
@@ -222,82 +219,41 @@
         </div>
     </div>
 
-    <!-- JavaScript Logic -->
     <script>
-        // =========================================================================
-        // --- DATA AND STATE ---
-        // =========================================================================
-        
-        let timetableData = []; // Global variable to hold parsed data
-        const CSV_FILE_PATH = 'TIMETABLE_DATA.csv'; // Hardcoded path to the assessment data file
+        let timetableData = [];
+        const CSV_FILE_PATH = 'TIMETABLE_DATA.csv';
+        const TODAY = (() => { const d = new Date(); d.setHours(12, 0, 0, 0); return d; })();
+        const PUBLIC_HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
 
-        // Normalize Today's Date to midday for clean comparison
-        const TODAY = (() => {
-            const d = new Date();
-            // Set time to noon for comparison purposes
-            d.setHours(12, 0, 0, 0); 
-            return d;
-        })();
-
-        // --- Representative Public Holidays (NSW 2026 - YYYY-MM-DD) ---
-        const PUBLIC_HOLIDAYS = [
-            "2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", 
-            "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", 
-            "2026-10-05", "2026-12-25", "2026-12-28", 
-        ];
-
-        // State variables
         let studentDetails = { name: '', number: '', startDate: '' }; 
-        let calculatedSchedule = []; 
-        let finalResult = null; // Stores the final scheduling result object for use in printing/logic
+        let finalResult = null;
         
-        // DOM Elements
         const courseEndDateInput = document.getElementById('course-end-date');
         const generateButton = document.getElementById('generate-button');
         const dataLoadStatusEl = document.getElementById('data-load-status');
         const timetableBodyEl = document.getElementById('timetable-body');
         
-        // =========================================================================
-        // --- UTILITY FUNCTIONS ---
-        // =========================================================================
-
-        /**
-         * Utility to show temporary, custom messages (instead of alert())
-         */
         const showMessage = (message, isError = false) => {
             const box = document.getElementById('message-box');
-            box.innerHTML = `
-                <div class="p-3 mb-2 rounded-lg text-sm font-semibold shadow-lg ${isError ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}">
-                    ${message}
-                </div>
-            `;
+            box.innerHTML = `<div class="p-3 mb-2 rounded-lg text-sm font-semibold shadow-lg ${isError ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}">${message}</div>`;
             setTimeout(() => { box.innerHTML = ''; }, 5000);
         };
 
         /**
-         * Converts a raw CSV string into an array of assessment objects.
-         * Fixed to handle commas within quoted strings.
+         * BUG FIX: Corrected CSV parsing to handle quoted fields containing commas.
          */
         function parseCSV(csvText) {
             const lines = csvText.trim().split(/\r?\n/);
-            if (lines.length < 2) {
-                console.error("CSV has no data rows.");
-                return [];
-            }
+            if (lines.length < 2) return [];
 
-            // Start from the second line (index 1) to skip the header
             const data = lines.slice(1).map((line, index) => {
-                // BUG FIX: Use regex to split by comma only if the comma is NOT inside double quotes
+                // Regex to split by comma only if not inside double quotes
                 const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 
-                // Ensure we have the minimum required columns (5)
-                if (values.length < 5) {
-                    return null;
-                }
+                if (values.length < 5) return null;
 
                 try {
                     return {
-                        // Strip surrounding quotes and whitespace from each field
                         UnitCode: values[0].replace(/^"|"$/g, '').trim(),
                         UnitDescription: values[1].replace(/^"|"$/g, '').trim(),
                         AssessmentName: values[2].replace(/^"|"$/g, '').trim(),
@@ -305,7 +261,6 @@
                         DaysRequired: parseInt(values[4].replace(/^"|"$/g, '').trim(), 10) || 0,
                     };
                 } catch (e) {
-                    console.error(`Error parsing row ${index + 2}:`, e);
                     return null;
                 }
             }).filter(item => item !== null && item.DaysRequired >= 0);
@@ -313,604 +268,207 @@
             return data;
         }
 
-
-        // =========================================================================
-        // --- DATE CALCULATION LOGIC ---
-        // =========================================================================
-
-        /**
-         * Checks if a date falls on a weekend (Saturday or Sunday).
-         */
-        function isWeekend(date) {
-            const day = date.getDay();
-            return day === 0 || day === 6; // Sunday (0) or Saturday (6)
-        }
-
-        /**
-         * Checks if a date falls on a representative public holiday.
-         */
+        function isWeekend(date) { const day = date.getDay(); return day === 0 || day === 6; }
         function isHoliday(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
-            
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             return PUBLIC_HOLIDAYS.includes(dateStr);
         }
 
-        /**
-         * Finds the next valid working day (Monday to Friday, non-holiday).
-         */
         function getNextValidDate(date) {
-            const validDate = new Date(date.getTime()); 
-            validDate.setHours(12, 0, 0, 0); 
-
-            // Keep adding a day until it's a weekday and not a holiday
-            while (isWeekend(validDate) || isHoliday(validDate)) {
-                validDate.setDate(validDate.getDate() + 1);
-            }
-            return validDate;
+            const d = new Date(date.getTime()); d.setHours(12, 0, 0, 0);
+            while (isWeekend(d) || isHoliday(d)) d.setDate(d.getDate() + 1);
+            return d;
         }
 
-        /**
-         * Finds the previous valid working day (Monday to Friday, non-holiday).
-         */
         function getPreviousValidDate(date) {
-            const validDate = new Date(date.getTime()); 
-            validDate.setHours(12, 0, 0, 0); 
-
-            // Keep subtracting a day until it's a weekday and not a holiday
-            while (isWeekend(validDate) || isHoliday(validDate)) {
-                validDate.setDate(validDate.getDate() - 1);
-            }
-            return validDate;
+            const d = new Date(date.getTime()); d.setHours(12, 0, 0, 0);
+            while (isWeekend(d) || isHoliday(d)) d.setDate(d.getDate() - 1);
+            return d;
         }
 
-        /**
-         * Counts the number of working days between two dates (inclusive of end, exclusive of start).
-         */
         function getWorkingDaysBetween(startDate, endDate) {
             let count = 0;
             const current = new Date(startDate.getTime());
             current.setHours(12, 0, 0, 0);
-
-            // Start counting from the day after the start date
             current.setDate(current.getDate() + 1); 
-
             while (current <= endDate) {
-                if (!isWeekend(current) && !isHoliday(current)) {
-                    count++;
-                }
+                if (!isWeekend(current) && !isHoliday(current)) count++;
                 current.setDate(current.getDate() + 1);
             }
             return count;
         }
 
-        /**
-         * Converts a base number of working days into an integer number of working days, 
-         * applying a dynamic stretch/compression ratio.
-         */
-        function getAdjustedDays(baseDays, distributionRatio = 1.0) {
-            let days = Math.round(baseDays * distributionRatio);
-            
-            // Ensure minimum of 1 day if base days is > 0
-            if (baseDays > 0 && days === 0) {
-                days = 1; 
-            }
-            return days;
+        function getAdjustedDays(baseDays, ratio = 1.0) {
+            let days = Math.round(baseDays * ratio);
+            return (baseDays > 0 && days === 0) ? 1 : days;
         }
 
-        /**
-         * Calculates the total required working days for the entire schedule (at standard pace).
-         */
         function getTotalRequiredDays(data) {
-            return data.reduce((total, item) => {
-                return total + getAdjustedDays(item.DaysRequired, 1.0);
-            }, 0);
+            return data.reduce((total, item) => total + getAdjustedDays(item.DaysRequired, 1.0), 0);
         }
 
-        /**
-         * Subtracts a specified number of *working* days from a base Date object (backward scheduling).
-         */
-        function subtractDaysFromDate(baseDate, daysRequired, distributionRatio = 1.0) {
-            const requiredWorkingDays = getAdjustedDays(daysRequired, distributionRatio);
-            
-            // Start from the day *before* the submission date for the prior task
-            let currentDate = getPreviousValidDate(baseDate); 
-            
-            let daysToSubtract = requiredWorkingDays - 1; // Already accounted for 1 day in getPreviousValidDate
-            
-            if (requiredWorkingDays === 0) {
-                // If it's a 0-day task, anchor to the previous valid date
-                return currentDate; 
-            }
-
+        function subtractDaysFromDate(baseDate, daysRequired, ratio = 1.0) {
+            const required = getAdjustedDays(daysRequired, ratio);
+            let current = getPreviousValidDate(baseDate); 
+            let daysToSubtract = required - 1;
+            if (required === 0) return current;
             while (daysToSubtract > 0) {
-                currentDate.setDate(currentDate.getDate() - 1); // Go back one calendar day
-                if (!isWeekend(currentDate) && !isHoliday(currentDate)) {
-                    daysToSubtract--; // Only count down if it's a working day
-                }
+                current.setDate(current.getDate() - 1);
+                if (!isWeekend(current) && !isHoliday(current)) daysToSubtract--;
             }
-            
-            // Ensure the final date is a valid working day (i.e., not a weekend/holiday)
-            return getPreviousValidDate(currentDate);
+            return getPreviousValidDate(current);
         }
 
-        /**
-         * Formats a Date object to DD/MM/YYYY string.
-         */
         function formatDate(dateObj) {
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
-            const year = dateObj.getFullYear();
-            return `${day}/${month}/${year}`;
+            return `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
         }
 
-
-        // =========================================================================
-        // --- DATA LOADING & MAIN LOGIC ---
-        // =========================================================================
-
-        /**
-         * Asynchronously fetches and loads the CSV data from the specified path.
-         */
         async function loadTimetableData() {
             try {
-                // Initial state update
-                generateButton.disabled = true;
-                dataLoadStatusEl.textContent = 'Loading assessment data from TIMETABLE_DATA.csv...';
-                
                 const response = await fetch(CSV_FILE_PATH);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
-                }
-                
+                if (!response.ok) throw new Error("File not found");
                 const csvText = await response.text();
-                const parsedData = parseCSV(csvText);
-                
-                if (parsedData.length > 0) {
-                    timetableData = parsedData;
-                    dataLoadStatusEl.textContent = `Successfully loaded ${parsedData.length} assessment tasks.`;
-                    dataLoadStatusEl.classList.remove('text-gray-500');
-                    dataLoadStatusEl.classList.add('text-green-600');
-                    
-                    // Enable the button if TPP End Date is already set, but DO NOT auto-calculate
-                    if (courseEndDateInput.value.trim()) {
-                        generateButton.disabled = false;
-                    }
-                    
-                    // Update initial table content
+                timetableData = parseCSV(csvText);
+                if (timetableData.length > 0) {
+                    dataLoadStatusEl.textContent = `Successfully loaded ${timetableData.length} assessment tasks.`;
+                    dataLoadStatusEl.className = 'col-span-1 md:col-span-3 text-center text-sm font-medium text-green-600 py-1';
+                    if (courseEndDateInput.value.trim()) generateButton.disabled = false;
                     timetableBodyEl.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Assessment data loaded. Select TPP End Date and click Generate.</td></tr>';
-                } else {
-                    throw new Error("CSV file contains no valid assessment data.");
                 }
             } catch (error) {
-                console.error("Error loading or parsing CSV:", error);
-                dataLoadStatusEl.textContent = `Error loading data: ${error.message}. Please ensure ${CSV_FILE_PATH} is present and correctly formatted.`;
-                dataLoadStatusEl.classList.remove('text-gray-500', 'text-green-600');
-                dataLoadStatusEl.classList.add('text-red-600');
-                timetableBodyEl.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-red-500 font-bold">Error loading assessment data. See status message above.</td></tr>';
+                dataLoadStatusEl.textContent = "Error loading CSV.";
+                dataLoadStatusEl.className = 'col-span-1 md:col-span-3 text-center text-sm font-medium text-red-600 py-1';
             }
         }
 
-
-        /**
-         * Main function to perform backward scheduling calculation.
-         */
         function calculateSchedule(data, courseAnchorDateStr, distributionRatio) {
-            // 1. Find the last valid working day on or before the user's selected date.
             let nextSubmissionDate = getPreviousValidDate(new Date(courseAnchorDateStr));
             const adjustedCourseEndDate = nextSubmissionDate;
-
             const reversedData = [...data].reverse();
             const tempSchedule = [];
 
             for (const item of reversedData) {
-                const { UnitCode, UnitDescription, AssessmentName, AssessmentDescription, DaysRequired } = item;
-                
                 const submissionDate = nextSubmissionDate;
-                
-                const latestCommencementDate = subtractDaysFromDate(submissionDate, DaysRequired, distributionRatio);
-                
-                // Store data
-                tempSchedule.push({
-                    UnitCode,
-                    UnitDescription,
-                    AssessmentName,
-                    AssessmentDescription,
-                    DaysRequired,
-                    distributionRatio: distributionRatio, 
-                    SubmissionDate: submissionDate,
-                });
-
-                // Set up the next calculation iteration
+                const latestCommencementDate = subtractDaysFromDate(submissionDate, item.DaysRequired, distributionRatio);
+                tempSchedule.push({ ...item, distributionRatio, SubmissionDate: submissionDate });
                 nextSubmissionDate = latestCommencementDate;
             }
 
-            const calculatedSchedule = tempSchedule.reverse();
-
-            // The commencement date of the very first task (standard calculation start date)
-            const latestCalculatedStartDate = getNextValidDate(nextSubmissionDate);
-            
-            // Flag indicates if the calculated start date is BEFORE today (i.e., time pressure)
-            const isDistributed = distributionRatio > 1.0; 
-            
-            return { calculatedSchedule, latestCalculatedStartDate, adjustedCourseEndDate, isDistributed, distributionRatio };
+            return { 
+                calculatedSchedule: tempSchedule.reverse(), 
+                latestCalculatedStartDate: getNextValidDate(nextSubmissionDate), 
+                adjustedCourseEndDate, 
+                distributionRatio 
+            };
         }
         
-        /**
-         * Handles the form submission: gets the student details and triggers the timetable calculation.
-         */
         function handleGenerateTimetable(e) {
             e.preventDefault();
-            const courseAnchorDate = courseEndDateInput.value.trim();
-
-            if (!courseAnchorDate) {
-                showMessage("Please select a TPP End Date.", true);
-                return;
-            }
-            if (timetableData.length === 0) {
-                 showMessage("Assessment data not loaded or empty. Please ensure the CSV file is accessible.", true);
-                 return;
-            }
-
+            if (!courseEndDateInput.value.trim()) return;
             studentDetails = { 
                 name: document.getElementById('student-name').value.trim(), 
                 number: document.getElementById('student-number').value.trim(), 
-                startDate: courseAnchorDate, // Store the anchor date (End Date)
+                startDate: courseEndDateInput.value.trim(),
             };
-            
             renderTimetable(timetableData);
             showMessage("Timetable generated successfully!");
         }
         
-        /**
-         * Trigger the browser's print dialog and rename the document.
-         */
         function handlePrint() {
-            // Check if calculation has been performed
-            if (!finalResult || !studentDetails.startDate) {
-                showMessage("Please generate the timetable first.", true);
-                return;
-            }
-
-            const studentName = document.getElementById('student-name').value.trim();
-            const calculatedStartDate = finalResult.latestCalculatedStartDate;
-            // The adjustedCourseEndDate is the last valid submission date calculated from TPP End Date
-            const tppEndDate = finalResult.adjustedCourseEndDate; 
-            
-            // Utility to format dates for filename (DD-MM-YYYY)
-            const formatFilenameDate = (dateObj) => {
-                const day = String(dateObj.getDate()).padStart(2, '0');
-                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                const year = dateObj.getFullYear();
-                return `${day}-${month}-${year}`;
-            };
-
-            const startStr = formatFilenameDate(calculatedStartDate);
-            const endStr = formatFilenameDate(tppEndDate);
-            
-            // Use 'Student' if name is empty, and replace spaces with underscores for filename compatibility
-            const cleanedName = (studentName || 'Student').replace(/\s+/g, '_');
-
-            // Desired format: {student name}_Timetable HLT35021_{start date}_{TPP end date}
-            const newTitle = `${cleanedName}_Timetable_HLT35021_${startStr}_${endStr}`;
-            
-            // Store original title
+            if (!finalResult) { showMessage("Generate the timetable first.", true); return; }
             const originalTitle = document.title;
-            
-            // Set the new title, which the print dialog uses for the filename
-            document.title = newTitle;
-
-            // Trigger the print dialog
+            const cleanedName = (studentDetails.name || 'Student').replace(/\s+/g, '_');
+            document.title = `${cleanedName}_Timetable_HLT35021_${formatDate(finalResult.latestCalculatedStartDate).replace(/\//g, '-')}_${formatDate(finalResult.adjustedCourseEndDate).replace(/\//g, '-')}`;
             window.print();
-            
-            // Restore title immediately after print() call (best effort)
-            setTimeout(() => {
-                document.title = originalTitle;
-            }, 100); 
+            setTimeout(() => { document.title = originalTitle; }, 100); 
         }
 
-        /**
-         * Renders the timetable table based on the calculated schedule.
-         */
         function renderTimetable(data) {
             const container = document.getElementById('timetable-body');
-            const calculatedStartDateEl = document.getElementById('display-start-date');
-            const desiredEndDateEl = document.getElementById('display-end-date');
-            const durationEl = document.getElementById('display-duration');
+            if (data.length === 0 || !studentDetails.startDate) return;
             
-            const desiredEndDatePrintEl = document.getElementById('display-end-date-print');
-            const calculatedStartDatePrintEl = document.getElementById('display-start-date-print');
-            const durationPrintEl = document.getElementById('display-duration-print');
-            
-            const timePressureMessage = document.getElementById('time-pressure-message');
-            const aggressiveMessage = document.getElementById('aggressive-message'); 
-            const aggressivePercentEl = document.getElementById('aggressive-percent'); // For new aggressive message
-            const criticalWarningMessage = document.getElementById('critical-warning-message'); 
-            const distributedTimeMessage = document.getElementById('distributed-time-message');
-            const spreadPercentEl = document.getElementById('spread-percent'); // For distributed message
-            
-            const printInfoName = document.getElementById('print-info-name');
-            const printInfoNumber = document.getElementById('print-info-number');
-            
-            const dateElements = [calculatedStartDateEl, desiredEndDateEl, calculatedStartDatePrintEl, desiredEndDatePrintEl];
-
-            if (!container) return;
-
-            const courseAnchorDateStr = studentDetails.startDate; // TPP End Date
-            
-            // --- Reset All Elements ---
-            calculatedStartDateEl.textContent = 'N/A';
-            calculatedStartDatePrintEl.textContent = 'N/A';
-            desiredEndDateEl.textContent = 'N/A';
-            desiredEndDatePrintEl.textContent = 'N/A';
-            durationEl.textContent = 'N/A'; 
-            durationPrintEl.textContent = 'N/A';
-            
-            timePressureMessage.classList.add('hidden');
-            aggressiveMessage.classList.add('hidden'); 
-            criticalWarningMessage.classList.add('hidden');
-            distributedTimeMessage.classList.add('hidden');
-            
-            dateElements.forEach(el => {
-                el.classList.remove('text-red-600', 'text-green-600');
-                el.classList.add('text-dapa-primary');
-            });
-            
-            printInfoName.textContent = studentDetails.name || 'N/A';
-            printInfoNumber.textContent = studentDetails.number || 'N/A';
-
-            calculatedSchedule = [];
-            container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Assessment data loaded. Select TPP End Date and click Generate.</td></tr>';
-            
-            // Check if data is loaded or if anchor date is set
-            if (data.length === 0 || !courseAnchorDateStr) {
-                 return;
-            }
-            
-            const endDateObj = new Date(courseAnchorDateStr); 
-            endDateObj.setHours(12, 0, 0, 0); 
-            const actualCourseEndDate = getPreviousValidDate(endDateObj); // Last possible submission day
-
-            // Calculate total working days remaining
+            const endDateObj = new Date(studentDetails.startDate);
+            endDateObj.setHours(12, 0, 0, 0);
+            const actualCourseEndDate = getPreviousValidDate(endDateObj);
             const totalAvailableWorkingDays = getWorkingDaysBetween(TODAY, actualCourseEndDate);
-            
-            // --- Calculate and display duration in Weeks (Only) ---
-            let durationDisplay;
-            if (totalAvailableWorkingDays > 0) {
-                const weeks = Math.floor(totalAvailableWorkingDays / 5);
-                
-                if (weeks > 0) {
-                    durationDisplay = `${weeks} Week${weeks > 1 ? 's' : ''}`;
-                } else {
-                    durationDisplay = 'Less than 1 Week'; 
-                }
-            } else {
-                durationDisplay = '0 Weeks';
-            }
-            
-            durationEl.textContent = durationDisplay;
-            durationPrintEl.textContent = durationDisplay;
-            // --- END Weeks (Only) calculation ---
+            const totalRequiredDays = getTotalRequiredDays(data);
 
-            desiredEndDateEl.textContent = formatDate(endDateObj);
-            desiredEndDatePrintEl.textContent = formatDate(endDateObj);
-            
-            // --- SCHEDULING LOGIC START ---
-            
-            let totalRequiredDays = getTotalRequiredDays(data); 
-            let actualStartTime = getNextValidDate(TODAY); // The date the course will realistically start
-
-            // 1. Run Standard Calculation (Ratio 1.0) to see where it starts
-            const standardResult = calculateSchedule(data, courseAnchorDateStr, 1.0);
-            const standardCalculatedStartDate = standardResult.latestCalculatedStartDate;
-
-            const isStandardScheduleInPast = standardCalculatedStartDate < TODAY;
-            
+            // Scenarios
             if (totalAvailableWorkingDays < totalRequiredDays) {
-                
-                // SCENARIO 1 & 2: INSUFFICIENT TIME (Compression needed or Critical stretch)
-
-                // Try Aggressive Compression (Ratio 0.8: 20% time reduction)
-                const AGGRESSIVE_RATIO = 0.8;
-                const aggressiveResult = calculateSchedule(data, courseAnchorDateStr, AGGRESSIVE_RATIO);
-                
-                if (aggressiveResult.latestCalculatedStartDate < TODAY) {
-                    
-                    // SCENARIO 1: CRITICAL WARNING (Insufficient time even if compressed)
-                    // The deadline cannot be met. Show the standard stretched schedule for reference.
-                    finalResult = standardResult; 
+                const aggResult = calculateSchedule(data, studentDetails.startDate, 0.8);
+                if (aggResult.latestCalculatedStartDate < TODAY) {
+                    finalResult = calculateSchedule(data, studentDetails.startDate, 1.0);
                     finalResult.isCriticalStretch = true;
-                    finalResult.distributionRatio = 1.0; 
-                    
                 } else {
-                    
-                    // SCENARIO 2: AGGRESSIVE SCHEDULE (Sufficient time if compressed)
-                    // The compressed schedule works. Use it and display the aggressive warning.
-                    finalResult = aggressiveResult;
-                    
-                    // Show Aggressive message and populate percentage
-                    aggressivePercentEl.textContent = `${Math.round((1.0 - AGGRESSIVE_RATIO) * 100)}%`;
-                    aggressiveMessage.classList.remove('hidden');
+                    finalResult = aggResult;
+                    document.getElementById('aggressive-percent').textContent = '20%';
+                    document.getElementById('aggressive-message').classList.remove('hidden');
                 }
-                
-            } else if (totalAvailableWorkingDays > totalRequiredDays) {
-                
-                // SCENARIO 3 & 4: EXCESS TIME (Distribution needed or Standard is fine)
-                
-                // Calculate the Distribution Ratio (R > 1.0)
-                const requiredVsAvailableRatio = totalAvailableWorkingDays / totalRequiredDays;
-                
-                // Only distribute if we have more than 5% extra time
-                if (requiredVsAvailableRatio > 1.05) { 
-                    
-                    // SCENARIO 4: DISTRIBUTED SCHEDULE (Lots of time and extended)
-                    finalResult = calculateSchedule(data, courseAnchorDateStr, requiredVsAvailableRatio);
-                    // For distributed schedules, we want the student to start NOW and stretch the work.
-                    finalResult.latestCalculatedStartDate = actualStartTime; 
-                    finalResult.isDistributed = true;
-                    finalResult.distributionRatio = requiredVsAvailableRatio;
-                    
-                    // Show Distributed message and populate percentage
-                    spreadPercentEl.textContent = `${Math.round((finalResult.distributionRatio - 1) * 100)}%`;
-                    distributedTimeMessage.classList.remove('hidden');
-                    
-                } else {
-                    
-                    // SCENARIO 3: STANDARD SCHEDULE (Sufficient time - no compression/extension required)
-                    // Small amount of extra time (less than 5%): use standard schedule and treat as normal.
-                    finalResult = standardResult;
-                    if(isStandardScheduleInPast) {
-                        // If standard pace means the start date is in the past, show the time pressure warning.
-                        timePressureMessage.classList.remove('hidden'); 
-                    }
-                }
-                
             } else {
-                
-                // SCENARIO 3: EXACT TIME REQUIRED (Standard pace)
-                finalResult = standardResult;
-                if (isStandardScheduleInPast) {
-                    // If exactly required, but the start date is in the past, still show the pressure message
-                    timePressureMessage.classList.remove('hidden');
+                const ratio = totalAvailableWorkingDays / totalRequiredDays;
+                if (ratio > 1.05) {
+                    finalResult = calculateSchedule(data, studentDetails.startDate, ratio);
+                    finalResult.latestCalculatedStartDate = getNextValidDate(TODAY);
+                    document.getElementById('spread-percent').textContent = `${Math.round((ratio - 1) * 100)}%`;
+                    document.getElementById('distributed-time-message').classList.remove('hidden');
+                } else {
+                    finalResult = calculateSchedule(data, studentDetails.startDate, 1.0);
+                    if (finalResult.latestCalculatedStartDate < TODAY) document.getElementById('time-pressure-message').classList.remove('hidden');
                 }
             }
 
-            // 4. Update Header Display based on final result
-            calculatedStartDateEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
-            calculatedStartDatePrintEl.textContent = formatDate(finalResult.latestCalculatedStartDate);
-            
-            // 5. Display appropriate message and apply red color if critical
-            
-            if (finalResult.isCriticalStretch) {
-                // CRITICAL STRETCH (Maximum compression failed)
-                criticalWarningMessage.classList.remove('hidden');
-                dateElements.forEach(el => {
-                    el.classList.remove('text-dapa-primary');
-                    el.classList.add('text-red-600');
-                });
+            if (finalResult.isCriticalStretch) document.getElementById('critical-warning-message').classList.remove('hidden');
 
-            } else if (finalResult.distributionRatio === 1.0 && isStandardScheduleInPast) {
-                // Standard pace failed (Start date is in the past)
-                // The message is already handled above, but ensure color is normal unless critical
-            } 
+            document.getElementById('display-start-date').textContent = formatDate(finalResult.latestCalculatedStartDate);
+            document.getElementById('display-start-date-print').textContent = formatDate(finalResult.latestCalculatedStartDate);
+            document.getElementById('display-end-date').textContent = formatDate(endDateObj);
+            document.getElementById('display-end-date-print').textContent = formatDate(endDateObj);
+            document.getElementById('print-info-name').textContent = studentDetails.name || 'N/A';
+            document.getElementById('print-info-number').textContent = studentDetails.number || 'N/A';
+            
+            const weeks = Math.floor(totalAvailableWorkingDays / 5);
+            const durText = weeks > 0 ? `${weeks} Week${weeks > 1 ? 's' : ''}` : 'Less than 1 Week';
+            document.getElementById('display-duration').textContent = durText;
+            document.getElementById('display-duration-print').textContent = durText;
 
-            // 6. Render the results
             container.innerHTML = ''; 
             let lastUnitCode = null;
 
             finalResult.calculatedSchedule.forEach((item) => {
-                const isNewUnit = item.UnitCode !== lastUnitCode;
-
-                // --- Handle Unit Header ---
-                if (isNewUnit) { 
-                    const unitHeaderRow = document.createElement('tr');
-                    unitHeaderRow.className = 'bg-dapa-secondary/50 border-t-8 border-dapa-primary';
-                    unitHeaderRow.innerHTML = `
-                        <td colspan="3" class="px-4 py-2 font-extrabold text-dapa-primary">
-                            ${item.UnitCode}: ${item.UnitDescription}
-                        </td>
-                    `;
-                    container.appendChild(unitHeaderRow);
+                if (item.UnitCode !== lastUnitCode) {
+                    const row = document.createElement('tr');
+                    row.className = 'unit-header-row bg-dapa-secondary/50 border-t-8 border-dapa-primary';
+                    row.innerHTML = `<td colspan="3" class="px-4 py-2 font-extrabold text-dapa-primary">${item.UnitCode}: ${item.UnitDescription}</td>`;
+                    container.appendChild(row);
                 }
-
-                const dateString = formatDate(item.SubmissionDate);
-                const isPastDue = item.SubmissionDate < TODAY;
-
-                // --- Handle Standard Task Rendering ---
-                lastUnitCode = item.UnitCode;
-
+                const isPast = item.SubmissionDate < TODAY;
                 const row = document.createElement('tr');
-                const rowClasses = isPastDue 
-                    ? 'bg-red-100 hover:bg-red-200' 
-                    : 'bg-white hover:bg-dapa-secondary/30';
-
-                row.className = `timetable-row ${rowClasses} transition duration-150 ease-in-out`;
+                row.className = `timetable-row ${isPast ? 'bg-red-50' : 'bg-white'} hover:bg-dapa-secondary/10 transition duration-150`;
                 
-                // --- Duration Text to only use Working Days (BOLD REMOVED) ---
-                let durationText;
-                const baseDays = item.DaysRequired;
-
-                if (baseDays === 0) {
-                    durationText = `0 days - Submit immediately.`;
-                } else if (item.distributionRatio !== 1.0) {
-                    const changePercent = Math.round(Math.abs(item.distributionRatio - 1) * 100);
-                    const adjustedDays = getAdjustedDays(baseDays, item.distributionRatio);
-                    
-                    if (item.distributionRatio < 1.0) {
-                        // Pace is faster (compressed)
-                        durationText = `Fast Track: Complete this in ${adjustedDays} working days (This is ${changePercent}% faster than standard).`;
-                    } else {
-                        // Pace is slower (distributed)
-                        // This case only happens if finalResult.isDistributed is true
-                        durationText = `Flexible Pace: Complete this in ${adjustedDays} working days (This is ${changePercent}% slower than standard).`;
-                    }
-                    
-                } else {
-                    durationText = `Standard Pace: Complete this in ${baseDays} working days`;
-                }
-                // --- End Duration Text ---
-
-                let submissionCellContent = dateString;
-                let submissionCellClasses = isPastDue ? 'text-red-600' : 'text-green-600';
-                
+                let durInfo = item.distributionRatio !== 1.0 
+                    ? `${item.distributionRatio < 1.0 ? 'Fast Track' : 'Flexible Pace'}: ${getAdjustedDays(item.DaysRequired, item.distributionRatio)} working days`
+                    : `Standard Pace: ${item.DaysRequired} working days`;
 
                 row.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium w-1/12">
-                        ${item.AssessmentName}
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-700 w-6/12">
-                        ${item.AssessmentDescription}
-                        <p class="text-xs text-gray-500 italic">${durationText}</p>
-                    </td>
-                    <td class="px-4 py-3 text-center whitespace-nowrap text-base font-extrabold ${submissionCellClasses} w-4/12">
-                        ${submissionCellContent}
-                        ${isPastDue ? '<p class="text-xs font-medium text-red-500">Submission is Overdue</p>' : ''}
-                    </td>
+                    <td class="px-4 py-3 text-sm font-medium w-1/12">${item.AssessmentName}</td>
+                    <td class="px-4 py-3 text-sm w-6/12">${item.AssessmentDescription}<p class="text-xs text-gray-500 italic">${durInfo}</p></td>
+                    <td class="px-4 py-3 text-center text-base font-extrabold w-4/12 ${isPast ? 'text-red-600' : 'text-green-600'}">${formatDate(item.SubmissionDate)}</td>
                 `;
                 container.appendChild(row);
+                lastUnitCode = item.UnitCode;
             });
-
-            if (finalResult.calculatedSchedule.length === 0) {
-                container.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">No data available to calculate timetable.</td></tr>';
-            }
         }
 
-
-        // --- Initialization Function ---
         function init() {
-            // Attach event listeners
-            const form = document.getElementById('timetable-controls-form');
-            if (form) {
-                form.addEventListener('submit', handleGenerateTimetable);
-            }
-            
-            const printButton = document.getElementById('print-button');
-            if (printButton) {
-                printButton.addEventListener('click', handlePrint);
-            }
-            
-            // Listener to automatically enable the button when a date is selected, 
-            // provided the data has already loaded. REMOVED AUTO-CALCULATION HERE.
+            document.getElementById('timetable-controls-form').addEventListener('submit', handleGenerateTimetable);
+            document.getElementById('print-button').addEventListener('click', handlePrint);
             courseEndDateInput.addEventListener('change', () => {
-                const isDateSelected = courseEndDateInput.value.trim() !== '';
-                const isDataLoaded = timetableData.length > 0; 
-                generateButton.disabled = !(isDateSelected && isDataLoaded);
-                
-                // When the date is changed, clear the results display
-                document.getElementById('display-start-date').textContent = 'N/A';
-                document.getElementById('display-duration').textContent = 'N/A';
-                document.getElementById('timetable-body').innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500">Click Generate Timetable to see the new schedule.</td></tr>';
+                generateButton.disabled = !(courseEndDateInput.value && timetableData.length > 0);
                 document.getElementById('display-end-date').textContent = courseEndDateInput.value ? formatDate(new Date(courseEndDateInput.value)) : 'N/A';
             });
-
-            // Start data loading process immediately
             loadTimetableData();
         }
 
-        // Start initialization
         window.addEventListener('load', init);
     </script>
 </body>
