@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HLT35021 DAPA Assessment Timetable</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -14,15 +15,11 @@
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--dapa-background); }
         
-        /* FIX: Outline was being clipped on the right. 
-           Using inset box-shadow or a small margin/padding fix. */
         .editable-cell {
             transition: all 0.2s;
-            border: 2px solid transparent; /* Reserve space */
+            border: 2px solid transparent;
         }
         .editable-cell:hover { background-color: #f3f0ff; cursor: text; }
-        
-        /* Updated Focus Style to prevent clipping */
         .editable-cell:focus { 
             outline: none; 
             border-color: var(--dapa-primary);
@@ -80,7 +77,7 @@
         </div>
 
         <div class="overflow-hidden rounded-lg border shadow-sm">
-            <table class="min-w-full divide-y divide-gray-200" style="border-collapse: separate; border-spacing: 0;">
+            <table id="main-table" class="min-w-full divide-y divide-gray-200" style="border-collapse: separate; border-spacing: 0;">
                 <thead class="bg-[#532A8C]">
                     <tr>
                         <th class="w-1/6 px-4 py-3 text-left text-xs font-bold text-white uppercase">Task</th>
@@ -94,15 +91,19 @@
             </table>
         </div>
 
-        <div class="no-print mt-8 flex justify-center">
-            <button onclick="window.print()" class="bg-[#532A8C] text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-[#9D8ABB]">Print Timetable</button>
+        <div class="no-print mt-8 flex flex-wrap justify-center gap-4">
+            <button onclick="window.print()" class="bg-[#532A8C] text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-[#9D8ABB] flex items-center gap-2">
+                <span>Print Timetable</span>
+            </button>
+            <button id="btn-excel" class="bg-green-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-green-600 flex items-center gap-2">
+                <span>Export to Excel</span>
+            </button>
         </div>
     </div>
 
     <script>
         let taskData = [];
         const HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
-
         const $ = (id) => document.getElementById(id);
 
         async function init() {
@@ -167,7 +168,7 @@
             schedule.reverse().forEach(t => {
                 if (t.unit !== lastU) {
                     const h = body.insertRow();
-                    h.className = "bg-gray-50 font-bold text-[#532A8C]";
+                    h.className = "bg-gray-50 font-bold text-[#532A8C] excel-header-row";
                     h.innerHTML = `<td colspan="3" class="px-4 py-2 border-t border-b">${t.unit}: ${t.desc}</td>`;
                 }
                 const r = body.insertRow();
@@ -178,6 +179,46 @@
                 `;
                 lastU = t.unit;
             });
+        });
+
+        // EXPORT TO EXCEL LOGIC
+        $('btn-excel').addEventListener('click', () => {
+            const studentName = $('s-name').value || "Student";
+            const wb = XLSX.utils.book_new();
+            const dataRows = [];
+
+            // 1. Add Summary Section
+            dataRows.push(["STUDENT TIMETABLE SUMMARY"]);
+            dataRows.push(["Student Name", studentName]);
+            dataRows.push(["Student Number", $('s-num').value || "N/A"]);
+            dataRows.push(["TPP End Date", $('p-end').textContent]);
+            dataRows.push(["Calculated Start Date", $('p-start').textContent]);
+            dataRows.push(["Remaining Time", $('p-dur').textContent]);
+            dataRows.push([]); // Spacer
+
+            // 2. Add Table Headers
+            dataRows.push(["TASK", "DESCRIPTION / UNIT", "LATEST SUBMISSION DATE"]);
+
+            // 3. Add Table Content (Iterating rows to capture manual edits)
+            const rows = document.querySelectorAll('#t-body tr');
+            rows.forEach(row => {
+                const cells = Array.from(row.cells).map(cell => cell.innerText.trim());
+                if (row.classList.contains('excel-header-row')) {
+                    // This is a Unit Header
+                    dataRows.push([cells[0], "", ""]); 
+                } else {
+                    // This is an Assessment Task
+                    dataRows.push(cells);
+                }
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(dataRows);
+            
+            // Basic Column Widths
+            ws['!cols'] = [{ wch: 15 }, { wch: 60 }, { wch: 25 }];
+
+            XLSX.utils.book_append_sheet(wb, ws, "Timetable");
+            XLSX.writeFile(wb, `${studentName.replace(/\s+/g, '_')}_Timetable.xlsx`);
         });
 
         window.onload = init;
