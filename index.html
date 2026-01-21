@@ -276,41 +276,39 @@
 
         /**
          * Converts a raw CSV string into an array of assessment objects.
+         * Fixed to handle commas within quoted strings.
          */
         function parseCSV(csvText) {
-            const lines = csvText.trim().split('\n');
+            const lines = csvText.trim().split(/\r?\n/);
             if (lines.length < 2) {
                 console.error("CSV has no data rows.");
                 return [];
             }
 
-            // Simple header parsing (using first line for reference, but hardcoding keys)
-            const headers = ["UnitCode", "UnitDescription", "AssessmentName", "AssessmentDescription", "DaysRequired"];
-            
             // Start from the second line (index 1) to skip the header
             const data = lines.slice(1).map((line, index) => {
-                // Simple split by comma. Needs improvement for complex CSV (quotes, embedded commas)
-                // but sufficient for a structured dataset.
-                const values = line.split(','); 
+                // BUG FIX: Use regex to split by comma only if the comma is NOT inside double quotes
+                const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 
-                if (values.length !== headers.length) {
-                    // Ignore rows with incorrect column count (e.g., empty lines or poorly formatted data)
+                // Ensure we have the minimum required columns (5)
+                if (values.length < 5) {
                     return null;
                 }
 
                 try {
                     return {
-                        UnitCode: values[0].trim(),
-                        UnitDescription: values[1].trim(),
-                        AssessmentName: values[2].trim(),
-                        AssessmentDescription: values[3].trim(),
-                        DaysRequired: parseInt(values[4].trim(), 10) || 0, // Ensure DaysRequired is an integer
+                        // Strip surrounding quotes and whitespace from each field
+                        UnitCode: values[0].replace(/^"|"$/g, '').trim(),
+                        UnitDescription: values[1].replace(/^"|"$/g, '').trim(),
+                        AssessmentName: values[2].replace(/^"|"$/g, '').trim(),
+                        AssessmentDescription: values[3].replace(/^"|"$/g, '').trim(),
+                        DaysRequired: parseInt(values[4].replace(/^"|"$/g, '').trim(), 10) || 0,
                     };
                 } catch (e) {
                     console.error(`Error parsing row ${index + 2}:`, e);
                     return null;
                 }
-            }).filter(item => item !== null && item.DaysRequired >= 0); // Filter out nulls and negative days
+            }).filter(item => item !== null && item.DaysRequired >= 0);
 
             return data;
         }
