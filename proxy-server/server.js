@@ -34,20 +34,20 @@ app.post('/api/sync-student', async (req, res) => {
 
         const enrolment = enrolRes.data.find(e => e.courseCode === 'HLT35021');
         if (!enrolment) return res.status(404).json({ error: 'HLT35021 Enrolment not found' });
+        
+// Step 3: Update Units
+// The 'units' array now contains { unitCode, startDate, targetEndDate } for each unit
+const updatePayload = {
+    units: units.map(u => ({
+        unitCode: u.unitCode,
+        startDate: u.startDate,
+        targetEndDate: u.targetEndDate // Now specific to the last task of this unit
+    }))
+};
 
-        // Step 3: POST/PUT Date updates to Units
-        // Constructing the payload for each unit in the enrolment
-        const updatePayload = {
-            units: units.map(u => ({
-                unitCode: u.unitCode,
-                startDate: startDate, // Generated from your calculator
-                targetEndDate: tppEndDate // The TPP End Date
-            }))
-        };
-
-        await axios.put(`${READY_API_URL}/enrollments/${enrolment.id}/units`, updatePayload, {
-            headers: { 'Authorization': `Bearer ${API_KEY}` }
-        });
+await axios.put(`${READY_API_URL}/enrollments/${enrolment.id}/units`, updatePayload, {
+    headers: { 'Authorization': `Bearer ${API_KEY}` }
+});
 
         res.json({ success: true, message: `Updated ${units.length} units for ${student.firstName}` });
 
