@@ -1,0 +1,55 @@
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+const READY_API_URL = 'https://api.readytech.com.au/v1'; // Use your test URL
+const API_KEY = 'YOUR_READYTECH_API_KEY';
+
+app.post('/api/sync-student', async (req, res) => {
+    const { studentNumber, tppEndDate, startDate, units } = req.body;
+
+    try {
+        // Step 1: GET Student Details
+        const studentRes = await axios.get(`${READY_API_URL}/students`, {
+            params: { studentNumber: studentNumber },
+            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        });
+        
+        const student = studentRes.data[0];
+        if (!student) return res.status(404).json({ error: 'Student not found' });
+
+        // Step 2: GET Enrolment for HLT35021
+        const enrolRes = await axios.get(`${READY_API_URL}/enrollments`, {
+            params: { studentID: student.id },
+            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        });
+
+        const enrolment = enrolRes.data.find(e => e.courseCode === 'HLT35021');
+        if (!enrolment) return res.status(404).json({ error: 'HLT35021 Enrolment not found' });
+
+        // Step 3: POST/PUT Date updates to Units
+        // Constructing the payload for each unit in the enrolment
+        const updatePayload = {
+            units: units.map(u => ({
+                unitCode: u.unitCode,
+                startDate: startDate, // Generated from your calculator
+                targetEndDate: tppEndDate // The TPP End Date
+            }))
+        };
+
+        await axios.put(`${READY_API_URL}/enrollments/${enrolment.id}/units`, updatePayload, {
+            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        });
+
+        res.json({ success: true, message: `Updated ${units.length} units for ${student.firstName}` });
+
+    } catch (error) {
+        res.status(500).json({ error: error.response?.data || error.message });
+    }
+});
+
+app.listen(3000, () => console.log('Proxy running on http://localhost:3000'));
