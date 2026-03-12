@@ -98,10 +98,16 @@
             <button id="btn-excel" class="bg-green-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-green-600 flex items-center gap-2">
                 <span>Export to Excel</span>
             </button>
+            <button id="btn-sync" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-blue-500 flex items-center gap-2">
+                <span>Sync to Ready Student</span>
+            </button>
         </div>
     </div>
 
     <script>
+        // CONFIGURATION: Replace this URL with your Codespace Port 3000 Local Address
+        const CODESPACE_PROXY_URL = 'https://urban-invention-69w65r574vgp24ggj-3000.app.github.dev/';
+
         let taskData = [];
         const HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
         const $ = (id) => document.getElementById(id);
@@ -120,6 +126,9 @@
                 $('load-msg').textContent = "CSV file not found.";
                 $('load-msg').classList.replace('text-gray-500', 'text-red-600');
             }
+            
+            // Link Sync Button
+            $('btn-sync').addEventListener('click', syncToReadyStudent);
         }
 
         $('s-date').addEventListener('change', () => {
@@ -181,42 +190,82 @@
             });
         });
 
+        // SYNC TO READY STUDENT LOGIC
+        async function syncToReadyStudent() {
+            const studentNum = $('s-num').value;
+            const tppEndDate = $('s-date').value;
+            const startDateRaw = $('p-start').textContent; // Formatted DD/MM/YYYY
+
+            if (!studentNum || !tppEndDate) {
+                alert("Please enter a Student Number and TPP End Date first.");
+                return;
+            }
+
+            const btn = $('btn-sync');
+            btn.disabled = true;
+            btn.innerText = "Syncing...";
+
+            // Convert DD/MM/YYYY to YYYY-MM-DD for the API
+            const [d, m, y] = startDateRaw.split('/');
+            const isoStartDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+
+            const payload = {
+                studentNumber: studentNum,
+                tppEndDate: tppEndDate,
+                startDate: isoStartDate,
+                units: [...new Set(taskData.map(t => t.unit))].map(u => ({ unitCode: u }))
+            };
+
+            try {
+                const response = await fetch(`${CODESPACE_PROXY_URL}/api/sync-student`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert("Ready Student Updated: " + result.message);
+                } else {
+                    alert("Sync Error: " + (result.error?.message || result.error || "Unknown Error"));
+                }
+            } catch (err) {
+                alert("Connection Failed: Ensure your Codespace Proxy is running and Port 3000 is set to Public.");
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Sync to Ready Student";
+            }
+        }
+
         // EXPORT TO EXCEL LOGIC
         $('btn-excel').addEventListener('click', () => {
             const studentName = $('s-name').value || "Student";
             const wb = XLSX.utils.book_new();
             const dataRows = [];
 
-            // 1. Add Summary Section
             dataRows.push(["STUDENT TIMETABLE SUMMARY"]);
             dataRows.push(["Student Name", studentName]);
             dataRows.push(["Student Number", $('s-num').value || "N/A"]);
             dataRows.push(["TPP End Date", $('p-end').textContent]);
             dataRows.push(["Calculated Start Date", $('p-start').textContent]);
             dataRows.push(["Remaining Time", $('p-dur').textContent]);
-            dataRows.push([]); // Spacer
+            dataRows.push([]);
 
-            // 2. Add Table Headers
             dataRows.push(["TASK", "DESCRIPTION / UNIT", "LATEST SUBMISSION DATE"]);
 
-            // 3. Add Table Content (Iterating rows to capture manual edits)
             const rows = document.querySelectorAll('#t-body tr');
             rows.forEach(row => {
                 const cells = Array.from(row.cells).map(cell => cell.innerText.trim());
                 if (row.classList.contains('excel-header-row')) {
-                    // This is a Unit Header
                     dataRows.push([cells[0], "", ""]); 
                 } else {
-                    // This is an Assessment Task
                     dataRows.push(cells);
                 }
             });
 
             const ws = XLSX.utils.aoa_to_sheet(dataRows);
-            
-            // Basic Column Widths
             ws['!cols'] = [{ wch: 15 }, { wch: 60 }, { wch: 25 }];
-
             XLSX.utils.book_append_sheet(wb, ws, "Timetable");
             XLSX.writeFile(wb, `${studentName.replace(/\s+/g, '_')}_Timetable.xlsx`);
         });
