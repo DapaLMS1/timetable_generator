@@ -13,6 +13,34 @@ if (!API_KEY) {
     console.error("ERROR: READY_API_KEY is not defined!");
 }
 
+app.get('/api/lookup-student', async (req, res) => {
+    const { studentNumber, name } = req.query;
+    
+    try {
+        let params = {};
+        if (studentNumber) params.studentNumber = studentNumber;
+        if (name) params.firstName = name; // Ready Student usually searches by firstName or lastName
+
+        const studentRes = await axios.get(`${READY_API_URL}/students`, {
+            params: params,
+            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        });
+
+        const student = studentRes.data[0];
+        if (student) {
+            res.json({ 
+                success: true, 
+                studentName: `${student.firstName} ${student.lastName}`,
+                studentNumber: student.studentNumber 
+            });
+        } else {
+            res.status(404).json({ success: false, message: "Not found" });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/sync-student', async (req, res) => {
     const { studentNumber, tppEndDate, startDate, units } = req.body;
 
