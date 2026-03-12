@@ -7,7 +7,11 @@ app.use(cors());
 app.use(express.json());
 
 const READY_API_URL = 'https://api.readytech.com.au/v1'; // Use your test URL
-const API_KEY = 'YOUR_READYTECH_API_KEY';
+const API_KEY = process.env.READY_API_KEY;
+
+if (!API_KEY) {
+    console.error("ERROR: READY_API_KEY is not defined!");
+}
 
 app.post('/api/sync-student', async (req, res) => {
     const { studentNumber, tppEndDate, startDate, units } = req.body;
