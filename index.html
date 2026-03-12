@@ -191,52 +191,83 @@
         });
 
         // SYNC TO READY STUDENT LOGIC
-        async function syncToReadyStudent() {
-            const studentNum = $('s-num').value;
-            const tppEndDate = $('s-date').value;
-            const startDateRaw = $('p-start').textContent; // Formatted DD/MM/YYYY
+async function syncToReadyStudent() {
+    const studentNum = $('s-num').value;
+    const tppEndDate = $('s-date').value;
 
-            if (!studentNum || !tppEndDate) {
-                alert("Please enter a Student Number and TPP End Date first.");
-                return;
-            }
+    if (!studentNum || !tppEndDate) {
+        alert("Please enter a Student Number and TPP End Date first.");
+        return;
+    }
 
-            const btn = $('btn-sync');
-            btn.disabled = true;
-            btn.innerText = "Syncing...";
+    const btn = $('btn-sync');
+    btn.disabled = true;
+    btn.innerText = "Syncing...";
 
-            // Convert DD/MM/YYYY to YYYY-MM-DD for the API
-            const [d, m, y] = startDateRaw.split('/');
-            const isoStartDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    // 1. Group tasks by Unit to find the 'Last Task Date' for each unit
+    const unitUpdates = {};
+    
+    // We look at the actual data generated in the timetable
+    taskData.forEach(task => {
+        if (!unitUpdates[task.unit]) {
+            unitUpdates[task.unit] = { unitCode: task.unit, lastDate: null };
+        }
+    });
 
-            const payload = {
-                studentNumber: studentNum,
-                tppEndDate: tppEndDate,
-                startDate: isoStartDate,
-                units: [...new Set(taskData.map(t => t.unit))].map(u => ({ unitCode: u }))
-            };
-
-            try {
-                const response = await fetch(`${CODESPACE_PROXY_URL}/api/sync-student`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                if (response.ok) {
-                    alert("Ready Student Updated: " + result.message);
-                } else {
-                    alert("Sync Error: " + (result.error?.message || result.error || "Unknown Error"));
-                }
-            } catch (err) {
-                alert("Connection Failed: Ensure your Codespace Proxy is running and Port 3000 is set to Public.");
-                console.error(err);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Sync to Ready Student";
+    // Extract the dates from the editable table cells to capture manual adjustments
+    const rows = document.querySelectorAll('#t-body tr');
+    let currentUnit = "";
+    
+    rows.forEach(row => {
+        if (row.classList.contains('excel-header-row')) {
+            // Extract unit code from "HLTxxx: Description"
+            currentUnit = row.cells[0].innerText.split(':')[0].trim();
+        } else if (currentUnit) {
+            const dateStr = row.cells[2].innerText.trim(); // The DD/MM/YYYY string
+            const [d, m, y] = dateStr.split('/');
+            const thisDate = new Date(`${y}-${m}-${d}`);
+            
+            // Keep track of the latest date found for this unit
+            if (!unitUpdates[currentUnit].lastDate || thisDate > unitUpdates[currentUnit].lastDate) {
+                unitUpdates[currentUnit].lastDate = thisDate;
             }
         }
+    });
+
+    // 2. Format the payload for the Proxy
+    const formattedUnits = Object.values(unitUpdates).map(u => ({
+        unitCode: u.unitCode,
+        // The Start Date remains the calculated global start date
+        startDate: $('p-start').textContent.split('/').reverse().join('-'), 
+        // The Target End Date is now the specific last task date for THIS unit
+        targetEndDate: u.lastDate.toISOString().split('T')[0] 
+    }));
+
+    const payload = {
+        studentNumber: studentNum,
+        units: formattedUnits
+    };
+
+    try {
+        const response = await fetch(`${CODESPACE_PROXY_URL}/api/sync-student`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            alert("Ready Student Updated! Target End Dates set to last task dates.");
+        } else {
+            alert("Sync Error: " + (result.error?.message || result.error));
+        }
+    } catch (err) {
+        alert("Connection Failed. Ensure Proxy is running and Port 3000 is Public.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Sync to Ready Student";
+    }
+}
 
         // EXPORT TO EXCEL LOGIC
         $('btn-excel').addEventListener('click', () => {
