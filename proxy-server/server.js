@@ -29,7 +29,7 @@ app.get('/api/lookup-student', async (req, res) => {
 
         const studentRes = await axios.get(`${READY_API_URL}/students`, {
             params: params,
-            headers: { 'Authorization': `Bearer ${API_KEY}` }
+            headers: { 'ApiKey': API_KEY }
         });
 
         const student = studentRes.data[0];
