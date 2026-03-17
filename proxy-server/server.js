@@ -33,10 +33,10 @@ app.get('/api/lookup-student', async (req, res) => {
 
         const studentRes = await axios.get(`${READY_API_URL}/parties`, {
             params: params,
-            headers: { 
-                'Authorization': `Bearer ${API_KEY}`,
-                'Accept': 'application/json'
-            }
+headers: { 
+    'ApiKey': API_KEY, // Many Ready Student instances prefer this
+    'Accept': 'application/json'
+}
         });
 
         // Documentation indicates response contains a 'parties' array
