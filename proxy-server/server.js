@@ -42,8 +42,15 @@ app.get('/api/lookup-student', async (req, res) => {
         } else {
             res.status(404).json({ success: false, message: "Student record not found" });
         }
-    } catch (error) {
-        console.error("Lookup Error:", error.message);
+} catch (error) {
+        // --- ADD THESE LOGS TO SEE THE REAL ERROR ---
+        if (error.response) {
+            console.error("ReadyTech Error Status:", error.response.status);
+            console.error("ReadyTech Error Data:", JSON.stringify(error.response.data));
+        } else {
+            console.error("Connection Error:", error.message);
+        }
+        // --------------------------------------------
         res.status(500).json({ error: "Failed to connect to Ready Student API" });
     }
 });
