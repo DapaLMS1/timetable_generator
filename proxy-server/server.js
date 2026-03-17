@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Ready Student API Configuration
 // Updated to use the /webservice path identified in documentation
 const READY_API_URL = 'https://dapa.readystudent.io/webservice';
-const API_KEY = process.env.READY_API_KEY;
+const API_KEY = 'c71f10f9a874a8c66092fd289bc821a8ef35adf6';.
 
 app.use(cors());
 app.use(express.json());
