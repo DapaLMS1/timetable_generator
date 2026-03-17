@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ready Student API Configuration from GitHub Secrets / .env
-const READY_API_URL = 'https://dapa.jobreadyplus.com/api/v1/'; 
+const READY_API_URL = 'https://dapa.readystudent.io/api/v1';
 const API_KEY = process.env.READY_API_KEY;
 
 app.use(cors());
