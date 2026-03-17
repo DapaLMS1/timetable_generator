@@ -34,7 +34,7 @@ app.get('/api/lookup-student', async (req, res) => {
 const studentRes = await axios.get(`${READY_API_URL}/parties`, {
     params: params,
     headers: { 
-        // This encodes "blank_username:your_api_key" into Base64
+        // Note the ':' before API_KEY (Username is blank)
         'Authorization': `Basic ${Buffer.from(':' + API_KEY).toString('base64')}`,
         'Accept': 'application/json'
     }
