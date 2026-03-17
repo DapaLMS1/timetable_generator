@@ -62,8 +62,8 @@
         </div>
 
         <div class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-6 bg-gray-50 rounded-lg border">
-            <div><label class="block text-sm font-bold text-gray-700">Student Name</label><input type="text" id="s-name" class="w-full mt-1 p-2 border rounded"></div>
-            <div><label class="block text-sm font-bold text-gray-700">Student Number</label><input type="text" id="s-num" class="w-full mt-1 p-2 border rounded"></div>
+            <div><label class="block text-sm font-bold text-gray-700">Student Number</label><input type="text" id="s-num" class="w-full mt-1 p-2 border rounded" placeholder="Type to search..."></div>
+            <div><label class="block text-sm font-bold text-gray-700">Student Name</label><input type="text" id="s-name" class="w-full mt-1 p-2 border rounded" placeholder="Auto-fills from Number"></div>
             <div><label class="block text-sm font-bold text-gray-700">TPP End Date</label><input type="date" id="s-date" class="w-full mt-1 p-2 border rounded border-[#532A8C]"></div>
             <div class="md:col-span-3">
                 <button id="btn-gen" class="w-full bg-[#532A8C] text-white py-3 rounded-lg font-bold hover:bg-[#9D8ABB] transition disabled:opacity-50" disabled>Generate Timetable</button>
@@ -106,40 +106,8 @@
 
     <script>
         // CONFIGURATION: Replace this URL with your Codespace Port 3000 Local Address
-        const CODESPACE_PROXY_URL = 'https://REPLACE-WITH-YOUR-CODESPACE-URL-3000.app.github.dev';
+        const CODESPACE_PROXY_URL = 'https://urban-invention-69w65r574vgp24ggj-3000.app.github.dev/';
 
-        let lookupTimer;
-
-function debounceLookup(field) {
-    clearTimeout(lookupTimer);
-    lookupTimer = setTimeout(async () => {
-        const value = $(field).value;
-        if (value.length < 3) return; // Don't search for very short strings
-
-        try {
-            const param = field === 's-num' ? `studentNumber=${value}` : `name=${value}`;
-            const res = await fetch(`${CODESPACE_PROXY_URL}/api/lookup-student?${param}`);
-            const data = await res.json();
-
-            if (data.success) {
-                if (field === 's-num') {
-                    $('s-name').value = data.studentName;
-                    $('s-name').classList.add('bg-green-50'); // Visual cue for success
-                } else {
-                    $('s-num').value = data.studentNumber;
-                    $('s-num').classList.add('bg-green-50');
-                }
-            }
-        } catch (err) {
-            console.error("Lookup failed", err);
-        }
-    }, 600); // Wait 600ms after user stops typing
-}
-
-// Attach the listeners
-$('s-num').addEventListener('input', () => debounceLookup('s-num'));
-$('s-name').addEventListener('input', () => debounceLookup('s-name'));
-        
         let taskData = [];
         const HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
         const $ = (id) => document.getElementById(id);
@@ -159,8 +127,32 @@ $('s-name').addEventListener('input', () => debounceLookup('s-name'));
                 $('load-msg').classList.replace('text-gray-500', 'text-red-600');
             }
             
-            // Link Sync Button
             $('btn-sync').addEventListener('click', syncToReadyStudent);
+            $('s-num').addEventListener('input', () => debounceLookup('s-num'));
+            $('s-name').addEventListener('input', () => debounceLookup('s-name'));
+        }
+
+        let lookupTimer;
+        function debounceLookup(field) {
+            clearTimeout(lookupTimer);
+            lookupTimer = setTimeout(async () => {
+                const value = $(field).value;
+                if (value.length < 3) return;
+
+                try {
+                    const param = field === 's-num' ? `studentNumber=${value}` : `name=${value}`;
+                    const res = await fetch(`${CODESPACE_PROXY_URL}/api/lookup-student?${param}`);
+                    const data = await res.json();
+
+                    if (data.success) {
+                        if (field === 's-num') {
+                            $('s-name').value = data.studentName;
+                        } else {
+                            $('s-num').value = data.studentNumber;
+                        }
+                    }
+                } catch (err) { console.error("Lookup failed", err); }
+            }, 600);
         }
 
         $('s-date').addEventListener('change', () => {
@@ -222,109 +214,72 @@ $('s-name').addEventListener('input', () => debounceLookup('s-name'));
             });
         });
 
-        // SYNC TO READY STUDENT LOGIC
-async function syncToReadyStudent() {
-    const studentNum = $('s-num').value;
-    const tppEndDate = $('s-date').value;
-
-    if (!studentNum || !tppEndDate) {
-        alert("Please enter a Student Number and TPP End Date first.");
-        return;
-    }
-
-    const btn = $('btn-sync');
-    btn.disabled = true;
-    btn.innerText = "Syncing...";
-
-    // 1. Group tasks by Unit to find the 'Last Task Date' for each unit
-    const unitUpdates = {};
-    
-    // We look at the actual data generated in the timetable
-    taskData.forEach(task => {
-        if (!unitUpdates[task.unit]) {
-            unitUpdates[task.unit] = { unitCode: task.unit, lastDate: null };
-        }
-    });
-
-    // Extract the dates from the editable table cells to capture manual adjustments
-    const rows = document.querySelectorAll('#t-body tr');
-    let currentUnit = "";
-    
-    rows.forEach(row => {
-        if (row.classList.contains('excel-header-row')) {
-            // Extract unit code from "HLTxxx: Description"
-            currentUnit = row.cells[0].innerText.split(':')[0].trim();
-        } else if (currentUnit) {
-            const dateStr = row.cells[2].innerText.trim(); // The DD/MM/YYYY string
-            const [d, m, y] = dateStr.split('/');
-            const thisDate = new Date(`${y}-${m}-${d}`);
-            
-            // Keep track of the latest date found for this unit
-            if (!unitUpdates[currentUnit].lastDate || thisDate > unitUpdates[currentUnit].lastDate) {
-                unitUpdates[currentUnit].lastDate = thisDate;
+        async function syncToReadyStudent() {
+            const studentNum = $('s-num').value;
+            if (!studentNum || !$('s-date').value) {
+                alert("Please fill Student Number and TPP End Date first.");
+                return;
             }
+
+            const btn = $('btn-sync');
+            btn.disabled = true;
+            btn.innerText = "Syncing...";
+
+            const unitUpdates = {};
+            const rows = document.querySelectorAll('#t-body tr');
+            let currentUnit = "";
+            
+            rows.forEach(row => {
+                if (row.classList.contains('excel-header-row')) {
+                    currentUnit = row.cells[0].innerText.split(':')[0].trim();
+                    unitUpdates[currentUnit] = { unitCode: currentUnit, lastDate: null };
+                } else if (currentUnit) {
+                    const [d, m, y] = row.cells[2].innerText.trim().split('/');
+                    const thisDate = new Date(`${y}-${m}-${d}`);
+                    if (!unitUpdates[currentUnit].lastDate || thisDate > unitUpdates[currentUnit].lastDate) {
+                        unitUpdates[currentUnit].lastDate = thisDate;
+                    }
+                }
+            });
+
+            const payload = {
+                studentNumber: studentNum,
+                units: Object.values(unitUpdates).map(u => ({
+                    unitCode: u.unitCode,
+                    startDate: $('p-start').textContent.split('/').reverse().join('-'),
+                    targetEndDate: u.lastDate.toISOString().split('T')[0]
+                }))
+            };
+
+            try {
+                const response = await fetch(`${CODESPACE_PROXY_URL}/api/sync-student`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                alert(response.ok ? "Success: " + result.message : "Error: " + result.error);
+            } catch (err) { alert("Sync failed. Check Proxy Connection."); }
+            finally { btn.disabled = false; btn.innerText = "Sync to Ready Student"; }
         }
-    });
 
-    // 2. Format the payload for the Proxy
-    const formattedUnits = Object.values(unitUpdates).map(u => ({
-        unitCode: u.unitCode,
-        // The Start Date remains the calculated global start date
-        startDate: $('p-start').textContent.split('/').reverse().join('-'), 
-        // The Target End Date is now the specific last task date for THIS unit
-        targetEndDate: u.lastDate.toISOString().split('T')[0] 
-    }));
-
-    const payload = {
-        studentNumber: studentNum,
-        units: formattedUnits
-    };
-
-    try {
-        const response = await fetch(`${CODESPACE_PROXY_URL}/api/sync-student`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-            alert("Ready Student Updated! Target End Dates set to last task dates.");
-        } else {
-            alert("Sync Error: " + (result.error?.message || result.error));
-        }
-    } catch (err) {
-        alert("Connection Failed. Ensure Proxy is running and Port 3000 is Public.");
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "Sync to Ready Student";
-    }
-}
-
-        // EXPORT TO EXCEL LOGIC
         $('btn-excel').addEventListener('click', () => {
             const studentName = $('s-name').value || "Student";
             const wb = XLSX.utils.book_new();
-            const dataRows = [];
+            const dataRows = [
+                ["STUDENT TIMETABLE SUMMARY"],
+                ["Student Name", studentName],
+                ["Student Number", $('s-num').value || "N/A"],
+                ["TPP End Date", $('p-end').textContent],
+                ["Calculated Start Date", $('p-start').textContent],
+                ["Remaining Time", $('p-dur').textContent],
+                [],
+                ["TASK", "DESCRIPTION / UNIT", "LATEST SUBMISSION DATE"]
+            ];
 
-            dataRows.push(["STUDENT TIMETABLE SUMMARY"]);
-            dataRows.push(["Student Name", studentName]);
-            dataRows.push(["Student Number", $('s-num').value || "N/A"]);
-            dataRows.push(["TPP End Date", $('p-end').textContent]);
-            dataRows.push(["Calculated Start Date", $('p-start').textContent]);
-            dataRows.push(["Remaining Time", $('p-dur').textContent]);
-            dataRows.push([]);
-
-            dataRows.push(["TASK", "DESCRIPTION / UNIT", "LATEST SUBMISSION DATE"]);
-
-            const rows = document.querySelectorAll('#t-body tr');
-            rows.forEach(row => {
+            document.querySelectorAll('#t-body tr').forEach(row => {
                 const cells = Array.from(row.cells).map(cell => cell.innerText.trim());
-                if (row.classList.contains('excel-header-row')) {
-                    dataRows.push([cells[0], "", ""]); 
-                } else {
-                    dataRows.push(cells);
-                }
+                dataRows.push(row.classList.contains('excel-header-row') ? [cells[0], "", ""] : cells);
             });
 
             const ws = XLSX.utils.aoa_to_sheet(dataRows);
