@@ -8,8 +8,9 @@ const app = express();
 // Use the PORT provided by Codespaces/Environment or default to 3000
 const PORT = process.env.PORT || 3000;
 
-// Ready Student API Configuration from GitHub Secrets / .env
-const READY_API_URL = 'https://dapa.readystudent.io/api/v1';
+// Ready Student API Configuration
+// Updated to use the /webservice path identified in documentation
+const READY_API_URL = 'https://dapa.readystudent.io/webservice';
 const API_KEY = process.env.READY_API_KEY;
 
 app.use(cors());
@@ -23,76 +24,86 @@ app.get('/api/lookup-student', async (req, res) => {
     const { studentNumber, name } = req.query;
     
     try {
-        let params = {};
-        if (studentNumber) params.studentNumber = studentNumber;
-        if (name) params.firstName = name; 
+        // Build params using underscores as per documentation
+        let params = { type: 'student' }; 
+        if (studentNumber) params.student_number = studentNumber;
+        if (name) params.first_name = name; 
 
-        const studentRes = await axios.get(`${READY_API_URL}/students`, {
+        console.log(`Searching for student at: ${READY_API_URL}/parties`);
+
+        const studentRes = await axios.get(`${READY_API_URL}/parties`, {
             params: params,
-            headers: { 'ApiKey': API_KEY }
+            headers: { 
+                'Authorization': `Bearer ${API_KEY}`,
+                'Accept': 'application/json'
+            }
         });
 
-        const student = studentRes.data[0];
+        // Documentation indicates response contains a 'parties' array
+        const parties = studentRes.data.parties || [];
+        const student = parties[0];
+
         if (student) {
+            // Note: API returns data with hyphenated keys
             res.json({ 
                 success: true, 
-                studentName: `${student.firstName} ${student.lastName}`,
-                studentNumber: student.studentNumber 
+                studentName: `${student['first-name']} ${student['last-name']}`,
+                studentNumber: student['student-number'],
+                internalID: student.id
             });
         } else {
             res.status(404).json({ success: false, message: "Student record not found" });
         }
-} catch (error) {
-        // --- ADD THESE LOGS TO SEE THE REAL ERROR ---
+    } catch (error) {
         if (error.response) {
-            console.error("ReadyTech Error Status:", error.response.status);
-            console.error("ReadyTech Error Data:", JSON.stringify(error.response.data));
+            console.error("Ready Student Error Status:", error.response.status);
+            console.error("Ready Student Error Data:", JSON.stringify(error.response.data));
         } else {
             console.error("Connection Error:", error.message);
         }
-        // --------------------------------------------
         res.status(500).json({ error: "Failed to connect to Ready Student API" });
     }
 });
 
 /**
  * Endpoint 2: Sync Timetable to Ready Student
- * Finds the student, their HLT35021 enrolment, and updates unit dates.
- * targetEndDate is now specific to the last task date of each unit.
  */
 app.post('/api/sync-student', async (req, res) => {
     const { studentNumber, units } = req.body;
 
     try {
-        // Step 1: GET Student Details to get the internal ID
-        const studentRes = await axios.get(`${READY_API_URL}/students`, {
-            params: { studentNumber: studentNumber },
-            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        // Step 1: GET Student ID using student_number
+        const studentRes = await axios.get(`${READY_API_URL}/parties`, {
+            params: { student_number: studentNumber, type: 'student' },
+            headers: { 'Authorization': `Bearer ${API_KEY}`, 'Accept': 'application/json' }
         });
         
-        const student = studentRes.data[0];
+        const parties = studentRes.data.parties || [];
+        const student = parties[0];
         if (!student) return res.status(404).json({ error: 'Student not found' });
 
-        // Step 2: GET Enrolment for HLT35021
-        const enrolRes = await axios.get(`${READY_API_URL}/enrollments`, {
-            params: { studentID: student.id },
-            headers: { 'Authorization': `Bearer ${API_KEY}` }
+        // Step 2: GET Enrolments for this party
+        // Using /enrolments endpoint from documentation
+        const enrolRes = await axios.get(`${READY_API_URL}/enrolments`, {
+            params: { party_id: student.id },
+            headers: { 'Authorization': `Bearer ${API_KEY}`, 'Accept': 'application/json' }
         });
 
-        const enrolment = enrolRes.data.find(e => e.courseCode === 'HLT35021');
+        const enrolments = enrolRes.data.enrolments || [];
+        const enrolment = enrolments.find(e => e['course-code'] === 'HLT35021');
+        
         if (!enrolment) return res.status(404).json({ error: 'HLT35021 Enrolment not found' });
 
-        // Step 3: PUT Date updates to Units
-        // The payload 'units' from frontend contains: { unitCode, startDate, targetEndDate }
+        // Step 3: Update Units (logic remains same, adjusted for API path)
         const updatePayload = {
             units: units.map(u => ({
-                unitCode: u.unitCode,
-                startDate: u.startDate,
-                targetEndDate: u.targetEndDate // This is the date of the last task for this unit
+                'unit-code': u.unitCode,
+                'start-date': u.startDate,
+                'target-end-date': u.targetEndDate 
             }))
         };
 
-        const updateRes = await axios.put(`${READY_API_URL}/enrollments/${enrolment.id}/units`, updatePayload, {
+        await axios.put(`${READY_API_URL}/enrolments/${enrolment.id}/units`, updatePayload, {
             headers: { 
                 'Authorization': `Bearer ${API_KEY}`,
                 'Content-Type': 'application/json'
@@ -101,7 +112,7 @@ app.post('/api/sync-student', async (req, res) => {
 
         res.json({ 
             success: true, 
-            message: `Updated dates for ${units.length} units for ${student.firstName} ${student.lastName}` 
+            message: `Updated dates for ${units.length} units for ${student['first-name']}` 
         });
 
     } catch (error) {
@@ -114,5 +125,6 @@ app.post('/api/sync-student', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Proxy server is running on port ${PORT}`);
-    console.log(`API Key loaded: ${API_KEY ? 'YES' : 'NO (Check Secrets/Env)'}`);
+    console.log(`API Target: ${READY_API_URL}`);
+    console.log(`API Key loaded: ${API_KEY ? 'YES' : 'NO'}`);
 });
