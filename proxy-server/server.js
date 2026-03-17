@@ -31,13 +31,14 @@ app.get('/api/lookup-student', async (req, res) => {
 
         console.log(`Searching for student at: ${READY_API_URL}/parties`);
 
-        const studentRes = await axios.get(`${READY_API_URL}/parties`, {
-            params: params,
-headers: { 
-    'ApiKey': API_KEY, // Many Ready Student instances prefer this
-    'Accept': 'application/json'
-}
-        });
+const studentRes = await axios.get(`${READY_API_URL}/parties`, {
+    params: params,
+    headers: { 
+        'Authorization': `Bearer ${API_KEY}`,
+        'ApiKey': API_KEY, // Added this line
+        'Accept': 'application/json'
+    }
+});
 
         // Documentation indicates response contains a 'parties' array
         const parties = studentRes.data.parties || [];
