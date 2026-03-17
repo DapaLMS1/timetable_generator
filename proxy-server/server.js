@@ -35,7 +35,7 @@ const studentRes = await axios.get(`${READY_API_URL}/parties`, {
     params: params,
     headers: { 
         // Note the ':' before API_KEY (Username is blank)
-        'Authorization': `Basic ${Buffer.from(':' + API_KEY).toString('base64')}`,
+'Authorization': 'Basic ' + Buffer.from(API_KEY + ':').toString('base64')
         'Accept': 'application/json'
     }
 });
