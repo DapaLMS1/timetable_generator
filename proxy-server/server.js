@@ -12,7 +12,7 @@ const READY_API_URL = 'https://dapa.readystudent.io/webservice';
 const API_KEY = process.env.READY_API_KEY;
 
 // This encodes ":YOUR_API_KEY" into Base64 (Blank username + Key as password)
-const authHeader = `Basic ${Buffer.from(':' + API_KEY).toString('base64')}`;
+const authHeader = `Basic ${Buffer.from(API_KEY + ':').toString('base64')}`;
 
 app.use(cors());
 app.use(express.json());
