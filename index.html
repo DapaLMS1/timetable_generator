@@ -5,112 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HLT35021 DAPA Assessment Timetable</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --dapa-primary: #532A8C; 
-            --dapa-secondary: #C3ACE8; 
-            --dapa-background: #F2F2F2; 
-        }
+        :root { --dapa-primary: #532A8C; --dapa-background: #F2F2F2; }
         body { font-family: 'Inter', sans-serif; background-color: var(--dapa-background); }
-        
-        .editable-cell {
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-        .editable-cell:hover { background-color: #f3f0ff; cursor: text; }
-        .editable-cell:focus { 
-            outline: none; 
-            border-color: var(--dapa-primary);
-            background-color: white;
-            box-shadow: 0 0 0 2px rgba(83, 42, 140, 0.2);
-            border-radius: 4px;
-        }
-
-        @media print {
-            @page { size: A4 landscape; margin: 10mm; }
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            body { background-color: white !important; padding: 0; }
-            .max-w-6xl { max-width: none !important; width: 100% !important; box-shadow: none !important; margin: 0 !important; }
-            thead { display: table-header-group !important; } 
-            tr { page-break-inside: avoid !important; }
-            th, td { border: 1px solid #ccc !important; padding: 8px !important; }
-            th { background-color: #532A8C !important; color: white !important; -webkit-print-color-adjust: exact; }
-        }
-        .print-only { display: none; }
+        .unit-header { background-color: #f3e8ff; border-left: 4px solid var(--dapa-primary); }
+        @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
+    <div id="capture-area" class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
         
         <header class="text-center mb-8 pb-4 border-b-2 border-[#532A8C]">
             <img src="dapa-logo.png" alt="DAPA Logo" class="mx-auto h-16 mb-4 object-contain" onerror="this.src='https://placehold.co/150x60?text=DAPA+LOGO'">
-            <h1 class="no-print text-3xl font-extrabold text-[#532A8C]">HLT35021 DAPA Assessment Timetable</h1>
-            <h1 class="print-only text-2xl font-bold text-[#532A8C]">Timetable for completion of written assessments for HLT35021 CERTIFICATE III IN DENTAL ASSISTING</h1>
+            <h1 class="text-3xl font-extrabold text-[#532A8C]">HLT35021 DAPA Assessment Timetable</h1>
         </header>
 
-        <div class="print-only mb-8 p-6 border-2 rounded-lg border-[#532A8C]">
-            <h2 class="text-xl font-bold text-[#532A8C] mb-6 text-center">Student Timetable Summary</h2>
-            <div class="grid grid-cols-3 gap-8 text-center">
-                <div><p class="text-xs font-bold uppercase text-gray-500">TPP End Date</p><p id="p-end" class="text-xl font-extrabold text-[#532A8C] mt-1">-</p></div>
-                <div><p class="text-xs font-bold uppercase text-gray-500">Calculated Start Date</p><p id="p-start" class="text-xl font-extrabold text-[#532A8C] mt-1">-</p></div>
-                <div><p class="text-xs font-bold uppercase text-gray-500">Remaining Time</p><p id="p-dur" class="text-xl font-extrabold text-[#532A8C] mt-1">-</p></div>
-            </div>
-        </div>
-
         <div class="no-print grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-6 bg-gray-50 rounded-lg border">
-            <div><label class="block text-sm font-bold text-gray-700">Student Number</label><input type="text" id="s-num" class="w-full mt-1 p-2 border rounded" placeholder="Type to search..."></div>
-            <div><label class="block text-sm font-bold text-gray-700">Student Name</label><input type="text" id="s-name" class="w-full mt-1 p-2 border rounded" placeholder="Auto-fills from Number"></div>
+            <div><label class="block text-sm font-bold text-gray-700">Student Number</label><input type="text" id="s-num" class="w-full mt-1 p-2 border rounded" placeholder="Search ID..."></div>
+            <div><label class="block text-sm font-bold text-gray-700">Student Name</label><input type="text" id="s-name" class="w-full mt-1 p-2 border rounded bg-gray-100" readonly></div>
             <div><label class="block text-sm font-bold text-gray-700">TPP End Date</label><input type="date" id="s-date" class="w-full mt-1 p-2 border rounded border-[#532A8C]"></div>
-            <div class="md:col-span-3">
-                <button id="btn-gen" class="w-full bg-[#532A8C] text-white py-3 rounded-lg font-bold hover:bg-[#9D8ABB] transition disabled:opacity-50" disabled>Generate Timetable</button>
-                <p id="load-msg" class="text-center text-xs mt-2 text-gray-500 font-medium">Checking for data file...</p>
-            </div>
-        </div>
-
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-bold text-gray-800">Submission Schedule</h2>
-            <p class="no-print text-xs italic text-gray-400">Tip: Click any date to manually edit (e.g. for Credit Transfer)</p>
         </div>
 
         <div class="overflow-hidden rounded-lg border shadow-sm">
-            <table id="main-table" class="min-w-full divide-y divide-gray-200" style="border-collapse: separate; border-spacing: 0;">
+            <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-[#532A8C]">
                     <tr>
-                        <th class="w-1/6 px-4 py-3 text-left text-xs font-bold text-white uppercase">Task</th>
-                        <th class="w-3/6 px-4 py-3 text-left text-xs font-bold text-white uppercase">Description</th>
-                        <th class="w-2/6 px-4 py-3 text-center text-xs font-bold text-white uppercase">Submission Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase">Unit | Element</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-white uppercase w-1/3">Planned Start / End</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-white uppercase">Submission Date</th>
                     </tr>
                 </thead>
                 <tbody id="t-body" class="bg-white divide-y divide-gray-200 text-sm">
-                    <tr><td colspan="3" class="p-10 text-center text-gray-400">Please select a TPP End Date and click Generate.</td></tr>
+                    <tr><td colspan="3" class="p-10 text-center text-gray-400">Search for a student to load timetable.</td></tr>
                 </tbody>
             </table>
         </div>
 
-        <div class="no-print mt-8 flex flex-wrap justify-center gap-4">
-            <button onclick="window.print()" class="bg-[#532A8C] text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-[#9D8ABB] flex items-center gap-2">
-                <span>Print Timetable</span>
-            </button>
-            <button id="btn-excel" class="bg-green-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-green-600 flex items-center gap-2">
-                <span>Export to Excel</span>
-            </button>
-            <button id="btn-sync" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-blue-500 flex items-center gap-2">
-                <span>Sync to Ready Student</span>
-            </button>
+        <div class="no-print mt-8 flex justify-center gap-4">
+            <button id="btn-sync" class="bg-[#532A8C] text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-purple-800 disabled:opacity-50" disabled>Sync & Upload Plan</button>
         </div>
     </div>
 
     <script>
-        // CONFIGURATION: Replace this URL with your Codespace Port 3000 Local Address
-        const CODESPACE_PROXY_URL = 'https://glowing-succotash-g469r5rw7x7vcw7vq-3000.app.github.dev';
-
-        let taskData = [];
-        const HOLIDAYS = ["2026-01-01", "2026-01-26", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-27", "2026-06-08", "2026-10-05", "2026-12-25", "2026-12-28"];
+        const CODESPACE_PROXY_URL = window.location.origin;
         const $ = (id) => document.getElementById(id);
+        let taskData = [];
 
         async function init() {
             try {
@@ -120,173 +62,96 @@
                     const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                     return { unit: cols[0], desc: cols[1], task: cols[2], taskDesc: cols[3], days: parseInt(cols[4]) || 1 };
                 });
-                $('load-msg').textContent = "Data ready.";
-                $('load-msg').classList.replace('text-gray-500', 'text-green-600');
-            } catch (e) {
-                $('load-msg').textContent = "CSV file not found.";
-                $('load-msg').classList.replace('text-gray-500', 'text-red-600');
-            }
+            } catch (e) { console.error("CSV error", e); }
             
-            $('btn-sync').addEventListener('click', syncToReadyStudent);
-            $('s-num').addEventListener('input', () => debounceLookup('s-num'));
-            $('s-name').addEventListener('input', () => debounceLookup('s-name'));
+            $('s-num').addEventListener('input', debounceLookup);
+            $('s-date').addEventListener('change', generateTimetable);
         }
 
         let lookupTimer;
-        function debounceLookup(field) {
+        function debounceLookup() {
             clearTimeout(lookupTimer);
+            const val = $('s-num').value;
+            if (val.length < 3) return;
             lookupTimer = setTimeout(async () => {
-                const value = $(field).value;
-                if (value.length < 3) return;
-
-                try {
-                    const param = field === 's-num' ? `studentNumber=${value}` : `name=${value}`;
-                    const res = await fetch(`${CODESPACE_PROXY_URL}/api/lookup-student?${param}`);
-                    const data = await res.json();
-
-                    if (data.success) {
-                        if (field === 's-num') {
-                            $('s-name').value = data.studentName;
-                        } else {
-                            $('s-num').value = data.studentNumber;
+                const res = await fetch(`${CODESPACE_PROXY_URL}/api/lookup-student?studentId=${val}`);
+                const data = await res.json();
+                if (data.success) {
+                    $('s-name').value = `${data.firstName} ${data.surname}`;
+                    const enRes = await fetch(`${CODESPACE_PROXY_URL}/api/check-enrolment?partyId=${data.partyId}`);
+                    const enData = await enRes.json();
+                    if (enData.success) {
+                        if (enData.endDate) {
+                            $('s-date').value = enData.endDate;
+                            generateTimetable();
                         }
+                        $('btn-sync').disabled = false;
                     }
-                } catch (err) { console.error("Lookup failed", err); }
+                }
             }, 600);
         }
 
-        $('s-date').addEventListener('change', () => {
-            $('btn-gen').disabled = !($('s-date').value && taskData.length > 0);
-        });
+        function generateTimetable() {
+            const endDateVal = $('s-date').value;
+            if (!endDateVal || taskData.length === 0) return;
 
-        function isOff(d) {
-            const s = d.toISOString().split('T')[0];
-            return d.getDay() === 0 || d.getDay() === 6 || HOLIDAYS.includes(s);
-        }
-
-        function subtractDays(date, days) {
-            let d = new Date(date);
-            let count = 0;
-            while (count < days) {
-                d.setDate(d.getDate() - 1);
-                if (!isOff(d)) count++;
-            }
-            return d;
-        }
-
-        function fmt(d) { return d.toLocaleDateString('en-GB'); }
-
-        $('btn-gen').addEventListener('click', () => {
-            const end = new Date($('s-date').value);
-            let current = new Date(end);
-            const schedule = [];
+            let currentCursor = new Date(endDateVal);
+            const body = $('t-body'); body.innerHTML = '';
             
-            [...taskData].reverse().forEach(t => {
-                const subDate = new Date(current);
-                schedule.push({ ...t, subDate });
-                current = subtractDays(subDate, t.days);
-            });
+            // 1. Group tasks by unit (preserving CSV order)
+            const grouped = taskData.reduce((acc, task) => {
+                if (!acc[task.unit]) acc[task.unit] = { desc: task.desc, tasks: [] };
+                acc[task.unit].tasks.push(task);
+                return acc;
+            }, {});
 
-            const start = schedule[schedule.length - 1].subDate;
-            const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24 * 7));
-            
-            $('p-end').textContent = fmt(end);
-            $('p-start').textContent = fmt(current);
-            $('p-dur').textContent = diff + " Weeks";
+            // 2. Calculate dates backwards from the TPP End Date
+            const unitsReverse = Object.keys(grouped).reverse();
+            const result = [];
 
-            const body = $('t-body');
-            body.innerHTML = '';
-            let lastU = '';
-
-            schedule.reverse().forEach(t => {
-                if (t.unit !== lastU) {
-                    const h = body.insertRow();
-                    h.className = "bg-gray-50 font-bold text-[#532A8C] excel-header-row";
-                    h.innerHTML = `<td colspan="3" class="px-4 py-2 border-t border-b">${t.unit}: ${t.desc}</td>`;
-                }
-                const r = body.insertRow();
-                r.innerHTML = `
-                    <td class="px-4 py-3 text-gray-600 font-medium">${t.task}</td>
-                    <td class="px-4 py-3 text-gray-500">${t.taskDesc}</td>
-                    <td class="px-4 py-3 text-center"><div class="editable-cell font-bold text-[#532A8C] p-1" contenteditable="true">${fmt(t.subDate)}</div></td>
-                `;
-                lastU = t.unit;
-            });
-        });
-
-        async function syncToReadyStudent() {
-            const studentNum = $('s-num').value;
-            if (!studentNum || !$('s-date').value) {
-                alert("Please fill Student Number and TPP End Date first.");
-                return;
-            }
-
-            const btn = $('btn-sync');
-            btn.disabled = true;
-            btn.innerText = "Syncing...";
-
-            const unitUpdates = {};
-            const rows = document.querySelectorAll('#t-body tr');
-            let currentUnit = "";
-            
-            rows.forEach(row => {
-                if (row.classList.contains('excel-header-row')) {
-                    currentUnit = row.cells[0].innerText.split(':')[0].trim();
-                    unitUpdates[currentUnit] = { unitCode: currentUnit, lastDate: null };
-                } else if (currentUnit) {
-                    const [d, m, y] = row.cells[2].innerText.trim().split('/');
-                    const thisDate = new Date(`${y}-${m}-${d}`);
-                    if (!unitUpdates[currentUnit].lastDate || thisDate > unitUpdates[currentUnit].lastDate) {
-                        unitUpdates[currentUnit].lastDate = thisDate;
-                    }
-                }
-            });
-
-            const payload = {
-                studentNumber: studentNum,
-                units: Object.values(unitUpdates).map(u => ({
-                    unitCode: u.unitCode,
-                    startDate: $('p-start').textContent.split('/').reverse().join('-'),
-                    targetEndDate: u.lastDate.toISOString().split('T')[0]
-                }))
-            };
-
-            try {
-                const response = await fetch(`${CODESPACE_PROXY_URL}/api/sync-student`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+            unitsReverse.forEach(uKey => {
+                const group = grouped[uKey];
+                const processedTasks = [];
+                
+                // Tasks within unit also processed backwards
+                [...group.tasks].reverse().forEach(t => {
+                    const d = new Date(currentCursor);
+                    processedTasks.push({ ...t, dateStr: d.toLocaleDateString('en-GB'), dateObj: new Date(d) });
+                    // Move cursor back for the next element
+                    currentCursor.setDate(currentCursor.getDate() - t.days);
                 });
-                const result = await response.json();
-                alert(response.ok ? "Success: " + result.message : "Error: " + result.error);
-            } catch (err) { alert("Sync failed. Check Proxy Connection."); }
-            finally { btn.disabled = false; btn.innerText = "Sync to Ready Student"; }
-        }
 
-        $('btn-excel').addEventListener('click', () => {
-            const studentName = $('s-name').value || "Student";
-            const wb = XLSX.utils.book_new();
-            const dataRows = [
-                ["STUDENT TIMETABLE SUMMARY"],
-                ["Student Name", studentName],
-                ["Student Number", $('s-num').value || "N/A"],
-                ["TPP End Date", $('p-end').textContent],
-                ["Calculated Start Date", $('p-start').textContent],
-                ["Remaining Time", $('p-dur').textContent],
-                [],
-                ["TASK", "DESCRIPTION / UNIT", "LATEST SUBMISSION DATE"]
-            ];
-
-            document.querySelectorAll('#t-body tr').forEach(row => {
-                const cells = Array.from(row.cells).map(cell => cell.innerText.trim());
-                dataRows.push(row.classList.contains('excel-header-row') ? [cells[0], "", ""] : cells);
+                const tasksInOrder = processedTasks.reverse();
+                result.push({
+                    unit: uKey,
+                    desc: group.desc,
+                    tasks: tasksInOrder,
+                    // Start is the date of the first element, End is the date of the last element
+                    displayStart: tasksInOrder[0].dateStr,
+                    displayEnd: tasksInOrder[tasksInOrder.length - 1].dateStr
+                });
             });
 
-            const ws = XLSX.utils.aoa_to_sheet(dataRows);
-            ws['!cols'] = [{ wch: 15 }, { wch: 60 }, { wch: 25 }];
-            XLSX.utils.book_append_sheet(wb, ws, "Timetable");
-            XLSX.writeFile(wb, `${studentName.replace(/\s+/g, '_')}_Timetable.xlsx`);
-        });
+            // 3. Render Table
+            result.reverse().forEach(unit => {
+                const h = body.insertRow();
+                h.className = "unit-header font-bold text-[#532A8C]";
+                h.innerHTML = `
+                    <td class="px-4 py-3">${unit.unit}: ${unit.desc}</td>
+                    <td class="px-4 py-3 text-xs">Start: ${unit.displayStart} | End: ${unit.displayEnd}</td>
+                    <td></td>
+                `;
+
+                unit.tasks.forEach(t => {
+                    const r = body.insertRow();
+                    r.innerHTML = `
+                        <td class="px-4 py-2 pl-10 text-gray-600 border-b">${t.taskDesc}</td>
+                        <td class="border-b"></td>
+                        <td class="px-4 py-2 text-center font-semibold border-b">${t.dateStr}</td>
+                    `;
+                });
+            });
+        }
 
         window.onload = init;
     </script>
