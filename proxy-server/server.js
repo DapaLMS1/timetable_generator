@@ -12,10 +12,17 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// This serves your index.html and CSS from the folder above 'proxy-server'
-app.use(express.static(path.join(__dirname, '../')));
+// 2. THE FIX: Explicitly tell the server exactly where the file is
+const rootPath = path.join(__dirname, '..');
 
-// 2. The Lookup Route (Mirrors your Postman Request)
+// Serve CSS/JS/Images from the root
+app.use(express.static(rootPath));
+
+// MANUALLY send the index.html file when someone visits the URL
+app.get('/', (req, res) => {
+    res.sendFile(path.join(rootPath, 'index.html'));
+});
+
 app.get('/api/lookup-student', async (req, res) => {
     try {
         const { studentId } = req.query;
