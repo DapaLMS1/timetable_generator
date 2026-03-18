@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 // This serves your index.html and CSS from the folder above 'proxy-server'
-app.use(express.static(path.join(__dirname, '../')));
+app.use(express.static(path.join(__dirname, './')));
 
 // 2. The Lookup Route (Mirrors your Postman Request)
 app.get('/api/lookup-student', async (req, res) => {
