@@ -9,12 +9,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --dapa-primary: #532A8C; --dapa-background: #F2F2F2; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--dapa-background); }
+        body { font-family: 'Inter', sans-serif; background-color: var(--dapa-background); position: relative; min-height: 100vh; }
         .unit-header { background-color: #f3e8ff; border-left: 4px solid var(--dapa-primary); }
-        @media print { .no-print { display: none !important; } }
+        
+        /* Version Watermark Style */
+        #version-tag {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(83, 42, 140, 0.1);
+            color: #532A8C;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        @media print { 
+            .no-print { display: none !important; } 
+            #version-tag { display: none !important; }
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
+
+    <div id="version-tag" class="no-print">07:08am</div>
 
     <div id="capture-area" class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl p-6 md:p-10">
         
@@ -98,14 +119,12 @@
             let currentCursor = new Date(endDateVal);
             const body = $('t-body'); body.innerHTML = '';
             
-            // 1. Group tasks by unit (preserving CSV order)
             const grouped = taskData.reduce((acc, task) => {
                 if (!acc[task.unit]) acc[task.unit] = { desc: task.desc, tasks: [] };
                 acc[task.unit].tasks.push(task);
                 return acc;
             }, {});
 
-            // 2. Calculate dates backwards from the TPP End Date
             const unitsReverse = Object.keys(grouped).reverse();
             const result = [];
 
@@ -113,11 +132,9 @@
                 const group = grouped[uKey];
                 const processedTasks = [];
                 
-                // Tasks within unit also processed backwards
                 [...group.tasks].reverse().forEach(t => {
                     const d = new Date(currentCursor);
-                    processedTasks.push({ ...t, dateStr: d.toLocaleDateString('en-GB'), dateObj: new Date(d) });
-                    // Move cursor back for the next element
+                    processedTasks.push({ ...t, dateStr: d.toLocaleDateString('en-GB') });
                     currentCursor.setDate(currentCursor.getDate() - t.days);
                 });
 
@@ -126,13 +143,11 @@
                     unit: uKey,
                     desc: group.desc,
                     tasks: tasksInOrder,
-                    // Start is the date of the first element, End is the date of the last element
                     displayStart: tasksInOrder[0].dateStr,
                     displayEnd: tasksInOrder[tasksInOrder.length - 1].dateStr
                 });
             });
 
-            // 3. Render Table
             result.reverse().forEach(unit => {
                 const h = body.insertRow();
                 h.className = "unit-header font-bold text-[#532A8C]";
