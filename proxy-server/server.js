@@ -6,62 +6,63 @@ const xml2js = require('xml2js');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
+// 1. Middleware
 app.use(cors());
 app.use(express.json());
 
-// Define exactly where the root folder is
+// 2. Path Setup
+// This finds the "timetable_generator" folder (one level up from this file)
 const rootDir = path.resolve(__dirname, '..');
 
-// 1. Serve all static files (CSS, Images, JS)
-app.use(express.static(rootDir));
-
-// 2. EXPLICITLY serve index.html for the home page
-app.get('/', (req, res) => {
-    res.sendFile(path.join(rootDir, 'index.html'));
+// 3. Diagnostic Route 
+// If you visit your-url.dev/test, you should see this message.
+app.get('/test', (req, res) => {
+    res.send(`Server is alive! I am looking for your index.html in: ${rootDir}`);
 });
 
+// 4. Serve Static Files (CSS, JS, Images)
+app.use(express.static(rootDir));
+
+// 5. Explicit Home Route
+// This forces the server to send index.html when you visit the main URL
+app.get('/', (req, res) => {
+    res.sendFile(path.join(rootDir, 'index.html'), (err) => {
+        if (err) {
+            console.error("Error sending index.html:", err);
+            res.status(500).send("Server found the folder, but could not find index.html specifically.");
+        }
+    });
+});
+
+// 6. The API Lookup (Mirroring your Postman Success)
 app.get('/api/lookup-student', async (req, res) => {
     try {
         const { studentId } = req.query;
         const API_KEY = process.env.READY_API_KEY;
 
-        if (!API_KEY) {
-            return res.status(500).json({ error: 'Server missing API Key' });
-        }
-
-        // MIRROR POSTMAN: Blank Username (:) + API Key as Password
+        // Basic Auth: Blank Username (:) + API Key
         const authHeader = `Basic ${Buffer.from(':' + API_KEY).toString('base64')}`;
 
-        console.log(`[Proxy] Searching for Student Identifier: ${studentId}`);
+        console.log(`[API] Searching for: ${studentId}`);
 
         const response = await axios.get('https://dapa.readystudent.io/webservice/parties', {
-            params: { 
-                'party_identifier': studentId 
-            },
+            params: { 'party_identifier': studentId },
             headers: { 
                 'Authorization': authHeader,
-                'Accept': 'application/xml'
+                'Accept': 'application/xml' 
             }
         });
 
-        // 3. Convert XML Packet to JSON
+        // Convert XML from Postman format to JSON for your Web Form
         const parser = new xml2js.Parser({ explicitArray: false, mergeAttrs: true });
-        
         parser.parseString(response.data, (err, result) => {
-            if (err) {
-                console.error('XML Parse Error:', err);
-                return res.status(500).json({ error: 'Failed to parse student data' });
-            }
+            if (err) throw err;
 
-            // Access the <party> tag inside <parties>
-            const partyData = result.parties && result.parties.party;
+            const partyData = result?.parties?.party;
 
             if (partyData) {
-                console.log(`[Success] Found: ${partyData['first-name']} ${partyData.surname}`);
-                
-                // Send clean data back to your web form
                 res.json({
                     success: true,
                     firstName: partyData['first-name'],
@@ -70,23 +71,21 @@ app.get('/api/lookup-student', async (req, res) => {
                     studentId: partyData['party-identifier']
                 });
             } else {
-                res.status(404).json({ success: false, message: 'Student ID not found in ReadyStudent' });
+                res.status(404).json({ success: false, message: 'Student not found' });
             }
         });
 
     } catch (error) {
-        console.error('API Connection Error:', error.response?.status, error.message);
-        res.status(error.response?.status || 500).json({ 
-            success: false, 
-            error: 'Connection to ReadyStudent failed' 
-        });
+        console.error('Connection Error:', error.message);
+        res.status(500).json({ success: false, error: 'ReadyStudent connection failed' });
     }
 });
 
-// 4. Start Server
+// 7. Start the Server
 app.listen(PORT, () => {
-    console.log(`-----------------------------------------`);
-    console.log(`🚀 Proxy Server running on port ${PORT}`);
-    console.log(`📂 Serving static files from: ${path.join(__dirname, '../')}`);
-    console.log(`-----------------------------------------`);
+    console.log(`=========================================`);
+    console.log(`🚀 PROXY SERVER ACTIVE ON PORT ${PORT}`);
+    console.log(`📂 ROOT FOLDER: ${rootDir}`);
+    console.log(`🔗 TEST LINK: /test`);
+    console.log(`=========================================`);
 });
