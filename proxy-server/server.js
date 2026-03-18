@@ -8,19 +8,18 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. Middleware
 app.use(cors());
 app.use(express.json());
 
-// 2. THE FIX: Explicitly tell the server exactly where the file is
-const rootPath = path.join(__dirname, '..');
+// Define exactly where the root folder is
+const rootDir = path.resolve(__dirname, '..');
 
-// Serve CSS/JS/Images from the root
-app.use(express.static(rootPath));
+// 1. Serve all static files (CSS, Images, JS)
+app.use(express.static(rootDir));
 
-// MANUALLY send the index.html file when someone visits the URL
+// 2. EXPLICITLY serve index.html for the home page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(rootPath, 'index.html'));
+    res.sendFile(path.join(rootDir, 'index.html'));
 });
 
 app.get('/api/lookup-student', async (req, res) => {
