@@ -1,127 +1,86 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const path = require('path');
+const xml2js = require('xml2js');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ready Student API Configuration
-// Updated to use the /webservice path identified in documentation
-const READY_API_URL = 'https://dapa.readystudent.io/webservice';
-const API_KEY = process.env.READY_API_KEY;
-
-// This encodes ":YOUR_API_KEY" into Base64 (Blank username + Key as password)
-const authHeader = `Basic ${Buffer.from(API_KEY + ':').toString('base64')}`;
-
+// 1. Middleware
 app.use(cors());
 app.use(express.json());
 
+// This serves your index.html and CSS from the folder above 'proxy-server'
+app.use(express.static(path.join(__dirname, '../')));
+
+// 2. The Lookup Route (Mirrors your Postman Request)
 app.get('/api/lookup-student', async (req, res) => {
-    const { studentNumber, name } = req.query;
-    
     try {
-        // Build params using underscores as per documentation
-        let params = { type: 'student' }; 
-        if (studentNumber) params.student_number = studentNumber;
-        if (name) params.first_name = name; 
+        const { studentId } = req.query;
+        const API_KEY = process.env.READY_API_KEY;
 
-        console.log(`Searching for student at: ${READY_API_URL}/parties`);
+        if (!API_KEY) {
+            return res.status(500).json({ error: 'Server missing API Key' });
+        }
 
-        const studentRes = await axios.get(`${READY_API_URL}/parties`, {
-            params: params,
+        // MIRROR POSTMAN: Blank Username (:) + API Key as Password
+        const authHeader = `Basic ${Buffer.from(':' + API_KEY).toString('base64')}`;
+
+        console.log(`[Proxy] Searching for Student Identifier: ${studentId}`);
+
+        const response = await axios.get('https://dapa.readystudent.io/webservice/parties', {
+            params: { 
+                'party_identifier': studentId 
+            },
             headers: { 
-                'Authorization': `Bearer ${API_KEY}`,
-                'Accept': 'application/json'
+                'Authorization': authHeader,
+                'Accept': 'application/xml'
             }
         });
 
-        // Documentation indicates response contains a 'parties' array
-        const parties = studentRes.data.parties || [];
-        const student = parties[0];
+        // 3. Convert XML Packet to JSON
+        const parser = new xml2js.Parser({ explicitArray: false, mergeAttrs: true });
+        
+        parser.parseString(response.data, (err, result) => {
+            if (err) {
+                console.error('XML Parse Error:', err);
+                return res.status(500).json({ error: 'Failed to parse student data' });
+            }
 
-        if (student) {
-            // Note: API returns data with hyphenated keys
-            res.json({ 
-                success: true, 
-                studentName: `${student['first-name']} ${student['last-name']}`,
-                studentNumber: student['student-number'],
-                internalID: student.id
-            });
-        } else {
-            res.status(404).json({ success: false, message: "Student record not found" });
-        }
+            // Access the <party> tag inside <parties>
+            const partyData = result.parties && result.parties.party;
+
+            if (partyData) {
+                console.log(`[Success] Found: ${partyData['first-name']} ${partyData.surname}`);
+                
+                // Send clean data back to your web form
+                res.json({
+                    success: true,
+                    firstName: partyData['first-name'],
+                    surname: partyData.surname,
+                    email: partyData.login,
+                    studentId: partyData['party-identifier']
+                });
+            } else {
+                res.status(404).json({ success: false, message: 'Student ID not found in ReadyStudent' });
+            }
+        });
+
     } catch (error) {
-        if (error.response) {
-            console.error("Ready Student Error Status:", error.response.status);
-            console.error("Ready Student Error Data:", JSON.stringify(error.response.data));
-        } else {
-            console.error("Connection Error:", error.message);
-        }
-        res.status(500).json({ error: "Failed to connect to Ready Student API" });
+        console.error('API Connection Error:', error.response?.status, error.message);
+        res.status(error.response?.status || 500).json({ 
+            success: false, 
+            error: 'Connection to ReadyStudent failed' 
+        });
     }
 });
 
-/**
- * Endpoint 2: Sync Timetable to Ready Student
- */
-app.post('/api/sync-student', async (req, res) => {
-    const { studentNumber, units } = req.body;
-    try {
-        // Step 1: GET Student ID using student_number
-        const studentRes = await axios.get(`${READY_API_URL}/parties`, {
-            params: { student_number: studentNumber, type: 'student' },
-            headers: { 'Authorization': `Bearer ${API_KEY}`, 'Accept': 'application/json' }
-        });
-        
-        const parties = studentRes.data.parties || [];
-        const student = parties[0];
-        if (!student) return res.status(404).json({ error: 'Student not found' });
-
-        // Step 2: GET Enrolments for this party
-        // Using /enrolments endpoint from documentation
-        const enrolRes = await axios.get(`${READY_API_URL}/enrolments`, {
-            params: { party_id: student.id },
-            headers: { 'Authorization': `Bearer ${API_KEY}`, 'Accept': 'application/json' }
-        });
-
-        const enrolments = enrolRes.data.enrolments || [];
-        const enrolment = enrolments.find(e => e['course-code'] === 'HLT35021');
-        
-        if (!enrolment) return res.status(404).json({ error: 'HLT35021 Enrolment not found' });
-
-        // Step 3: Update Units (logic remains same, adjusted for API path)
-        const updatePayload = {
-            units: units.map(u => ({
-                'unit-code': u.unitCode,
-                'start-date': u.startDate,
-                'target-end-date': u.targetEndDate 
-                'unit-code': u.unitCode,
-                'start-date': u.startDate,
-                'target-end-date': u.targetEndDate 
-            }))
-        };
-
-        await axios.put(`${READY_API_URL}/enrolments/${enrolment.id}/units`, updatePayload, {
-            headers: { 
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        res.json({ 
-            success: true, 
-            message: `Updated dates for ${units.length} units for ${student['first-name']}` 
-        });
-
-    } catch (error) {
-        console.error("Sync Error:", error.response?.data || error.message);
-        res.status(500).json({ error: "Sync failed" });
-    }
-});C
-
+// 4. Start Server
 app.listen(PORT, () => {
-    console.log(`Proxy server is running on port ${PORT}`);
-    console.log(`API Target: ${READY_API_URL}`);
-    console.log(`API Key loaded: ${API_KEY ? 'YES' : 'NO'}`);
+    console.log(`-----------------------------------------`);
+    console.log(`🚀 Proxy Server running on port ${PORT}`);
+    console.log(`📂 Serving static files from: ${path.join(__dirname, '../')}`);
+    console.log(`-----------------------------------------`);
 });
